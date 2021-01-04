@@ -255,7 +255,7 @@ var _ = Describe("pod mutation webhook", func() {
 						Driver: "topolvm.cybozu.com",
 						FSType: &fsType,
 						VolumeAttributes: map[string]string{
-							topolvm.EphemeralVolumeSizeKey: "2",
+							topolvm.EphemeralVolumeSizeKey: "2147483648", // 2Gb
 						},
 					},
 				},

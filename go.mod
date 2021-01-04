@@ -7,7 +7,7 @@ replace launchpad.net/gocheck => github.com/go-check/check v0.0.0-20180628173108
 require (
 	cloud.google.com/go v0.63.0 // indirect
 	github.com/container-storage-interface/spec v1.1.0
-	github.com/cybozu-go/log v1.5.0
+	github.com/cybozu-go/log v1.5.0 // indirect
 	github.com/cybozu-go/well v1.10.0
 	github.com/go-logr/logr v0.1.0
 	github.com/golang/protobuf v1.4.2
@@ -29,6 +29,7 @@ require (
 	k8s.io/apimachinery v0.18.9
 	k8s.io/client-go v0.18.9
 	k8s.io/klog v1.0.0
+	k8s.io/utils v0.0.0-20200603063816-c1c6865ac451
 	sigs.k8s.io/controller-runtime v0.6.3
 	sigs.k8s.io/controller-tools v0.4.0
 	sigs.k8s.io/yaml v1.2.0

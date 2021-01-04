@@ -2,45 +2,33 @@ package driver
 
 import (
 	"context"
-	"io"
 	"os"
-	"path/filepath"
 	"strconv"
 	"sync"
 
 	"github.com/topolvm/topolvm"
 	"github.com/topolvm/topolvm/csi"
 	"github.com/topolvm/topolvm/driver/k8s"
-	"github.com/topolvm/topolvm/filesystem"
-	"github.com/topolvm/topolvm/lvmd/proto"
-	"golang.org/x/sys/unix"
-	"google.golang.org/grpc"
+	"github.com/topolvm/topolvm/lvm"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	ctrl "sigs.k8s.io/controller-runtime"
+
+	"k8s.io/utils/mount"
 )
 
 const (
-	// DeviceDirectory is a directory where TopoLVM Node service creates device files.
-	DeviceDirectory = "/dev/topolvm"
-
-	mkfsCmd          = "/sbin/mkfs"
-	mountCmd         = "/bin/mount"
-	mountpointCmd    = "/bin/mountpoint"
-	umountCmd        = "/bin/umount"
-	devicePermission = 0600 | unix.S_IFBLK
 	ephVolConKey     = "csi.storage.k8s.io/ephemeral"
 )
 
 var nodeLogger = ctrl.Log.WithName("driver").WithName("node")
 
 // NewNodeService returns a new NodeServer.
-func NewNodeService(nodeName string, conn *grpc.ClientConn, service *k8s.LogicalVolumeService) csi.NodeServer {
+func NewNodeService(nodeName string, client lvm.Client, service *k8s.LogicalVolumeService) csi.NodeServer {
 	return &nodeService{
 		nodeName:     nodeName,
-		client:       proto.NewVGServiceClient(conn),
-		lvService:    proto.NewLVServiceClient(conn),
 		k8sLVService: service,
+		client:       client,
 	}
 }
 
@@ -48,10 +36,9 @@ type nodeService struct {
 	csi.UnimplementedNodeServer
 
 	nodeName     string
-	client       proto.VGServiceClient
-	lvService    proto.LVServiceClient
 	k8sLVService *k8s.LogicalVolumeService
 	mu           sync.Mutex
+	client           lvm.Client
 }
 
 func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -76,9 +63,8 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if req.GetVolumeCapability() == nil {
 		return nil, status.Error(codes.InvalidArgument, "no volume_capability is provided")
 	}
-	isBlockVol := req.GetVolumeCapability().GetBlock() != nil
 	isFsVol := req.GetVolumeCapability().GetMount() != nil
-	if !(isBlockVol || isFsVol) {
+	if !isFsVol {
 		return nil, status.Errorf(codes.InvalidArgument, "no supported volume capability: %v", req.GetVolumeCapability())
 	}
 	isInlineEphemeralVolumeReq := volumeContext[ephVolConKey] == "true"
@@ -86,7 +72,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var lv *proto.LogicalVolume
+	var lv *lvm.LogicalVolume
 	var err error
 	if isInlineEphemeralVolumeReq {
 		lv, err = s.getLvFromContext(ctx, topolvm.DefaultDeviceClassName, volumeID)
@@ -95,21 +81,16 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		}
 		// Need to check if the LV already exists so this block is idempotent.
 		if lv == nil {
-			var reqGb uint64 = topolvm.DefaultSizeGb
+			var reqBytes uint64 = topolvm.DefaultSize
 			if sizeStr, ok := volumeContext[topolvm.EphemeralVolumeSizeKey]; ok {
 				var err error
-				reqGb, err = strconv.ParseUint(sizeStr, 10, 64)
+				reqBytes, err = strconv.ParseUint(sizeStr, 10, 64)
 				if err != nil {
 					return nil, status.Errorf(codes.InvalidArgument, "Invalid size: %s", sizeStr)
 				}
 			}
-			nodeLogger.Info("Processing ephemeral inline volume request", "reqGb", reqGb)
-			_, err := s.lvService.CreateLV(ctx, &proto.CreateLVRequest{
-				Name:        volumeID,
-				DeviceClass: topolvm.DefaultDeviceClassName,
-				SizeGb:      reqGb,
-				Tags:        []string{"ephemeral"},
-			})
+			nodeLogger.Info("Processing ephemeral inline volume request", "reqBytes", reqBytes)
+			_, err = s.client.CreateLV(volumeID, topolvm.DefaultDeviceClassName, reqBytes, []string{"ephemeral"})
 			if err != nil {
 				return nil, status.Errorf(codes.Internal, "failed to create LV %v", err)
 			}
@@ -132,11 +113,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.NotFound, "failed to find LV: %s", volumeID)
 	}
 
-	if isBlockVol {
-		_, err = s.nodePublishBlockVolume(req, lv)
-	} else if isFsVol {
-		_, err = s.nodePublishFilesystemVolume(req, lv)
-	}
+	_, err = s.nodePublishFilesystemVolume(req, lv)
 
 	if err != nil {
 		if isInlineEphemeralVolumeReq {
@@ -144,7 +121,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			// guarantee that NodePublishVolume will be called again, so if
 			// anything fails after the volume is created we need to attempt to
 			// clean up the LVM so we don't leak storage space.
-			if _, err = s.lvService.RemoveLV(ctx, &proto.RemoveLVRequest{Name: volumeID, DeviceClass: topolvm.DefaultDeviceClassName}); err != nil {
+			if err = s.client.RemoveLV(volumeID, topolvm.DefaultDeviceClassName); err != nil {
 				return nil, status.Errorf(codes.Internal, "failed to remove LV for %s: %v", volumeID, err)
 			}
 		}
@@ -153,40 +130,23 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func (s *nodeService) nodePublishFilesystemVolume(req *csi.NodePublishVolumeRequest, lv *proto.LogicalVolume) (*csi.NodePublishVolumeResponse, error) {
+func (s *nodeService) nodePublishFilesystemVolume(req *csi.NodePublishVolumeRequest, lv *lvm.LogicalVolume) (*csi.NodePublishVolumeResponse, error) {
 	// Check request
 	mountOption := req.GetVolumeCapability().GetMount()
-	if mountOption.FsType == "" {
-		mountOption.FsType = "ext4"
-	}
 	accessMode := req.GetVolumeCapability().GetAccessMode().GetMode()
 	if accessMode != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
 		modeName := csi.VolumeCapability_AccessMode_Mode_name[int32(accessMode)]
 		return nil, status.Errorf(codes.FailedPrecondition, "unsupported access mode: %s", modeName)
 	}
 
-	// Find lv and create a block device with it
-	device := filepath.Join(DeviceDirectory, req.GetVolumeId())
-	err := s.createDeviceIfNeeded(device, lv)
-	if err != nil {
-		return nil, err
-	}
+	sourcePath := s.client.GetPath(lv.DeviceClass, lv.Name)
 
-	fs, err := filesystem.New(mountOption.FsType, device)
-	if err != nil {
-		return nil, err
-	}
-	if !fs.Exists() {
-		if err := fs.Mkfs(); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to create filesystem: volume=%s, error=%v", req.GetVolumeId(), err)
-		}
-	}
-
-	err = os.MkdirAll(req.GetTargetPath(), 0755)
+	err := os.MkdirAll(req.GetTargetPath(), 0755)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", req.GetTargetPath(), err)
 	}
-	if err := fs.Mount(req.GetTargetPath(), req.GetReadonly()); err != nil {
+	mounter := mount.New("")
+	if err := mounter.Mount(sourcePath, req.GetTargetPath(), "", mountOption.GetMountFlags()); err != nil {
 		return nil, status.Errorf(codes.Internal, "mount failed: volume=%s, error=%v", req.GetVolumeId(), err)
 	}
 	if err := os.Chmod(req.GetTargetPath(), 0777|os.ModeSetgid); err != nil {
@@ -201,63 +161,8 @@ func (s *nodeService) nodePublishFilesystemVolume(req *csi.NodePublishVolumeRequ
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func (s *nodeService) createDeviceIfNeeded(device string, lv *proto.LogicalVolume) error {
-	var stat unix.Stat_t
-	err := filesystem.Stat(device, &stat)
-	switch err {
-	case nil:
-		// a block device already exists, check its attributes
-		if stat.Rdev == unix.Mkdev(lv.DevMajor, lv.DevMinor) && (stat.Mode&devicePermission) == devicePermission {
-			return nil
-		}
-		err := os.Remove(device)
-		if err != nil {
-			return status.Errorf(codes.Internal, "failed to remove device file %s: error=%v", device, err)
-		}
-		fallthrough
-	case unix.ENOENT:
-		devno := unix.Mkdev(lv.DevMajor, lv.DevMinor)
-		if err := filesystem.Mknod(device, devicePermission, int(devno)); err != nil {
-			return status.Errorf(codes.Internal, "mknod failed for %s. major=%d, minor=%d, error=%v",
-				device, lv.DevMajor, lv.DevMinor, err)
-		}
-	default:
-		return status.Errorf(codes.Internal, "failed to stat %s: error=%v", device, err)
-	}
-	return nil
-}
-
-func (s *nodeService) nodePublishBlockVolume(req *csi.NodePublishVolumeRequest, lv *proto.LogicalVolume) (*csi.NodePublishVolumeResponse, error) {
-	// Find lv and create a block device with it
-	var stat unix.Stat_t
-	target := req.GetTargetPath()
-	err := filesystem.Stat(target, &stat)
-	switch err {
-	case nil:
-		if stat.Rdev == unix.Mkdev(lv.DevMajor, lv.DevMinor) && stat.Mode&devicePermission == devicePermission {
-			return &csi.NodePublishVolumeResponse{}, nil
-		}
-		if err := os.Remove(target); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to remove %s", target)
-		}
-	case unix.ENOENT:
-	default:
-		return nil, status.Errorf(codes.Internal, "failed to stat: %v", err)
-	}
-
-	devno := unix.Mkdev(lv.DevMajor, lv.DevMinor)
-	if err := filesystem.Mknod(target, devicePermission, int(devno)); err != nil {
-		return nil, status.Errorf(codes.Internal, "mknod failed for %s: error=%v", req.GetTargetPath(), err)
-	}
-
-	nodeLogger.Info("NodePublishVolume(block) succeeded",
-		"volume_id", req.GetVolumeId(),
-		"target_path", req.GetTargetPath())
-	return &csi.NodePublishVolumeResponse{}, nil
-}
-
-func (s *nodeService) findVolumeByID(listResp *proto.GetLVListResponse, name string) *proto.LogicalVolume {
-	for _, v := range listResp.Volumes {
+func (s *nodeService) findVolumeByID(volumes []*lvm.LogicalVolume, name string) *lvm.LogicalVolume {
+	for _, v := range volumes {
 		if v.Name == name {
 			return v
 		}
@@ -265,8 +170,8 @@ func (s *nodeService) findVolumeByID(listResp *proto.GetLVListResponse, name str
 	return nil
 }
 
-func (s *nodeService) getLvFromContext(ctx context.Context, deviceClass, volumeID string) (*proto.LogicalVolume, error) {
-	listResp, err := s.client.GetLVList(ctx, &proto.GetLVListRequest{DeviceClass: deviceClass})
+func (s *nodeService) getLvFromContext(ctx context.Context, deviceClass, volumeID string) (*lvm.LogicalVolume, error) {
+	listResp, err := s.client.GetLVList(deviceClass)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to list LV: %v", err)
 	}
@@ -290,39 +195,35 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	device := filepath.Join(DeviceDirectory, volID)
-
 	info, err := os.Stat(target)
 	if os.IsNotExist(err) {
-		// target_path does not exist, but device for mount-type PV may still exist.
-		_ = os.Remove(device)
 		return &csi.NodeUnpublishVolumeResponse{}, nil
 	} else if err != nil {
 		return nil, status.Errorf(codes.Internal, "stat failed for %s: %v", target, err)
 	}
 
-	// remove device file if target_path is device, unmount target_path otherwise
-	if info.IsDir() {
-		unpublishResp, err := s.nodeUnpublishFilesystemVolume(req, device)
-		if err != nil {
-			return unpublishResp, err
-		}
-		volume, err := s.getLvFromContext(ctx, topolvm.DefaultDeviceClassName, volID)
-		if err != nil {
-			return nil, err
-		}
-		if volume != nil && s.isEphemeralVolume(volume) {
-			if _, err = s.lvService.RemoveLV(ctx, &proto.RemoveLVRequest{Name: volID, DeviceClass: topolvm.DefaultDeviceClassName}); err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to remove LV for %s: %v", volID, err)
-			}
-		}
-		return &csi.NodeUnpublishVolumeResponse{}, nil
+	if !info.IsDir() {
+		return nil, status.Errorf(codes.Internal, "target path is not directory: %s", target)
 	}
-	return s.nodeUnpublishBlockVolume(req)
+
+	unpublishResp, err := s.nodeUnpublishFilesystemVolume(req)
+	if err != nil {
+		return unpublishResp, err
+	}
+	volume, err := s.getLvFromContext(ctx, topolvm.DefaultDeviceClassName, volID)
+	if err != nil {
+		return nil, err
+	}
+	if volume != nil && s.isEphemeralVolume(volume) {
+		if err = s.client.RemoveLV(volID, topolvm.DefaultDeviceClassName); err != nil {
+			return nil, status.Errorf(codes.Internal, "failed to remove LV for %s: %v", volID, err)
+		}
+	}
+	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
-func (s *nodeService) isEphemeralVolume(volume *proto.LogicalVolume) bool {
-	for _, tag := range volume.GetTags() {
+func (s *nodeService) isEphemeralVolume(volume *lvm.LogicalVolume) bool {
+	for _, tag := range volume.Tags {
 		if tag == "ephemeral" {
 			return true
 		}
@@ -330,31 +231,19 @@ func (s *nodeService) isEphemeralVolume(volume *proto.LogicalVolume) bool {
 	return false
 }
 
-func (s *nodeService) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolumeRequest, device string) (*csi.NodeUnpublishVolumeResponse, error) {
+func (s *nodeService) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	target := req.GetTargetPath()
-	if err := filesystem.Unmount(device, target); err != nil {
+	mounter := mount.New("")
+	if err := mounter.Unmount(target); err != nil {
 		return nil, status.Errorf(codes.Internal, "unmount failed for %s: error=%v", target, err)
 	}
 	if err := os.RemoveAll(target); err != nil {
 		return nil, status.Errorf(codes.Internal, "remove dir failed for %s: error=%v", target, err)
 	}
-	if err := os.Remove(device); err != nil {
-		return nil, status.Errorf(codes.Internal, "remove device failed for %s: error=%v", device, err)
-	}
 
 	nodeLogger.Info("NodeUnpublishVolume(fs) is succeeded",
 		"volume_id", req.GetVolumeId(),
 		"target_path", target)
-	return &csi.NodeUnpublishVolumeResponse{}, nil
-}
-
-func (s *nodeService) nodeUnpublishBlockVolume(req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
-	if err := os.Remove(req.GetTargetPath()); err != nil {
-		return nil, status.Errorf(codes.Internal, "remove failed for %s: error=%v", req.GetTargetPath(), err)
-	}
-	nodeLogger.Info("NodeUnpublishVolume(block) is succeeded",
-		"volume_id", req.GetVolumeId(),
-		"target_path", req.GetTargetPath())
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
@@ -369,56 +258,27 @@ func (s *nodeService) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVo
 		return nil, status.Error(codes.InvalidArgument, "no volume_path is provided")
 	}
 
-	var st unix.Stat_t
-	switch err := filesystem.Stat(p, &st); err {
-	case unix.ENOENT:
-		return nil, status.Error(codes.NotFound, "Volume is not found at "+p)
-	case nil:
-	default:
+	lvr, err := s.k8sLVService.GetVolume(ctx, req.GetVolumeId())
+	if err != nil {
+		return nil, err
+	}
+	lv, err := s.getLvFromContext(ctx, lvr.Spec.DeviceClass, req.GetVolumeId())
+	if err != nil {
+		return nil, err
+	}
+
+	stats, err := s.client.VolumeStats(lv.Name, lv.DeviceClass)
+	if err != nil {
 		return nil, status.Errorf(codes.Internal, "stat on %s was failed: %v", p, err)
 	}
 
-	if (st.Mode & unix.S_IFMT) == unix.S_IFBLK {
-		f, err := os.Open(p)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "open on %s was failed: %v", p, err)
-		}
-		defer f.Close()
-		pos, err := f.Seek(0, io.SeekEnd)
-		if err != nil {
-			return nil, status.Errorf(codes.Internal, "seek on %s was failed: %v", p, err)
-		}
-		return &csi.NodeGetVolumeStatsResponse{
-			Usage: []*csi.VolumeUsage{{Total: pos, Unit: csi.VolumeUsage_BYTES}},
-		}, nil
-	}
+	usage := []*csi.VolumeUsage{{
+		Unit:      csi.VolumeUsage_BYTES,
+		Total:     int64(stats.TotalBytes),
+		Used:      int64(stats.UsedBytes),
+		Available: int64(stats.TotalBytes - stats.UsedBytes),
+	}}
 
-	if st.Mode&unix.S_IFDIR == 0 {
-		return nil, status.Errorf(codes.Internal, "invalid mode bits for %s: %d", p, st.Mode)
-	}
-
-	var sfs unix.Statfs_t
-	if err := filesystem.Statfs(p, &sfs); err != nil {
-		return nil, status.Errorf(codes.Internal, "statvfs on %s was failed: %v", p, err)
-	}
-
-	var usage []*csi.VolumeUsage
-	if sfs.Blocks > 0 {
-		usage = append(usage, &csi.VolumeUsage{
-			Unit:      csi.VolumeUsage_BYTES,
-			Total:     int64(sfs.Blocks) * sfs.Frsize,
-			Used:      int64(sfs.Blocks-sfs.Bfree) * sfs.Frsize,
-			Available: int64(sfs.Bavail) * sfs.Frsize,
-		})
-	}
-	if sfs.Files > 0 {
-		usage = append(usage, &csi.VolumeUsage{
-			Unit:      csi.VolumeUsage_INODES,
-			Total:     int64(sfs.Files),
-			Used:      int64(sfs.Files - sfs.Ffree),
-			Available: int64(sfs.Ffree),
-		})
-	}
 	return &csi.NodeGetVolumeStatsResponse{Usage: usage}, nil
 }
 
@@ -447,66 +307,7 @@ func (s *nodeService) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
-	// Device type (block or fs, fs type detection) checking will be removed after CSI v1.2.0
-	// because `volume_capability` field will be added in csi.NodeExpandVolumeRequest
-	info, err := os.Stat(vpath)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "stat failed for %s: %v", vpath, err)
-	}
-
-	isBlock := !info.IsDir()
-	if isBlock {
-		nodeLogger.Info("NodeExpandVolume(block) is skipped",
-			"volume_id", vid,
-			"target_path", vpath,
-		)
-		return &csi.NodeExpandVolumeResponse{}, nil
-	}
-
-	device := filepath.Join(DeviceDirectory, vid)
-	lvr, err := s.k8sLVService.GetVolume(ctx, vid)
-	deviceClass := topolvm.DefaultDeviceClassName
-	if err == nil {
-		deviceClass = lvr.Spec.DeviceClass
-	} else if err != k8s.ErrVolumeNotFound {
-		return nil, err
-	}
-	lv, err := s.getLvFromContext(ctx, deviceClass, vid)
-	if err != nil {
-		return nil, err
-	}
-	if lv == nil {
-		return nil, status.Errorf(codes.NotFound, "failed to find LV: %s", vid)
-	}
-	err = s.createDeviceIfNeeded(device, lv)
-	if err != nil {
-		return nil, err
-	}
-	fsType, err := filesystem.DetectFilesystem(device)
-	if err != nil || fsType == "" {
-		return nil, status.Errorf(codes.Internal, "failed to detect filesystem of %s: %v", device, err)
-	}
-
-	fs, err := filesystem.New(fsType, device)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to create filesystem object with device path %s: %v", device, err)
-	}
-	if !fs.Exists() {
-		return nil, status.Errorf(codes.Internal, "filesystem %s is not mounted at %s", vid, vpath)
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	err = fs.Resize(vpath)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to resize filesystem %s (mounted at: %s): %v", vid, vpath, err)
-	}
-
-	nodeLogger.Info("NodeExpandVolume(fs) is succeeded",
-		"volume_id", vid,
-		"target_path", vpath,
-	)
+	// Filesystem should be already expanded by qouta change in logicalvolume controller
 
 	// `capacity_bytes` in NodeExpandVolumeResponse is defined as OPTIONAL.
 	// If this field needs to be filled, the value should be equal to `.status.currentSize` of the corresponding

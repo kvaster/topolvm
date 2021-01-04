@@ -2,12 +2,11 @@ package controllers
 
 import (
 	"context"
+	"github.com/topolvm/topolvm/lvm"
 
 	"github.com/go-logr/logr"
 	"github.com/topolvm/topolvm"
 	topolvmv1 "github.com/topolvm/topolvm/api/v1"
-	"github.com/topolvm/topolvm/lvmd/proto"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
@@ -22,21 +21,19 @@ type LogicalVolumeReconciler struct {
 	client.Client
 	log       logr.Logger
 	nodeName  string
-	vgService proto.VGServiceClient
-	lvService proto.LVServiceClient
+	lvmc      lvm.Client
 }
 
 // +kubebuilder:rbac:groups=topolvm.cybozu.com,resources=logicalvolumes,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=topolvm.cybozu.com,resources=logicalvolumes/status,verbs=get;update;patch
 
 // NewLogicalVolumeReconciler returns LogicalVolumeReconciler with creating lvService and vgService.
-func NewLogicalVolumeReconciler(client client.Client, log logr.Logger, nodeName string, conn *grpc.ClientConn) *LogicalVolumeReconciler {
+func NewLogicalVolumeReconciler(client client.Client, lvmc lvm.Client, log logr.Logger, nodeName string) *LogicalVolumeReconciler {
 	return &LogicalVolumeReconciler{
 		Client:    client,
 		log:       log,
 		nodeName:  nodeName,
-		vgService: proto.NewVGServiceClient(conn),
-		lvService: proto.NewLVServiceClient(conn),
+		lvmc:      lvmc,
 	}
 }
 
@@ -119,17 +116,17 @@ func (r *LogicalVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *LogicalVolumeReconciler) removeLVIfExists(ctx context.Context, log logr.Logger, lv *topolvmv1.LogicalVolume) error {
 	// Finalizer's process ( RemoveLV then removeString ) is not atomic,
 	// so checking existence of LV to ensure its idempotence
-	respList, err := r.vgService.GetLVList(ctx, &proto.GetLVListRequest{DeviceClass: lv.Spec.DeviceClass})
+	volumes, err := r.lvmc.GetLVList(lv.Spec.DeviceClass)
 	if err != nil {
 		log.Error(err, "failed to list LV")
 		return err
 	}
 
-	for _, v := range respList.Volumes {
+	for _, v := range volumes {
 		if v.Name != string(lv.UID) {
 			continue
 		}
-		_, err := r.lvService.RemoveLV(ctx, &proto.RemoveLVRequest{Name: string(lv.UID), DeviceClass: lv.Spec.DeviceClass})
+		err := r.lvmc.RemoveLV(string(lv.UID), lv.Spec.DeviceClass)
 		if err != nil {
 			log.Error(err, "failed to remove LV", "name", lv.Name, "uid", lv.UID)
 			return err
@@ -142,13 +139,13 @@ func (r *LogicalVolumeReconciler) removeLVIfExists(ctx context.Context, log logr
 }
 
 func (r *LogicalVolumeReconciler) volumeExists(ctx context.Context, log logr.Logger, lv *topolvmv1.LogicalVolume) (bool, error) {
-	respList, err := r.vgService.GetLVList(ctx, &proto.GetLVListRequest{DeviceClass: lv.Spec.DeviceClass})
+	volumes, err := r.lvmc.GetLVList(lv.Spec.DeviceClass)
 	if err != nil {
 		log.Error(err, "failed to get list of LV")
 		return false, err
 	}
 
-	for _, v := range respList.Volumes {
+	for _, v := range volumes {
 		if v.Name != string(lv.UID) {
 			continue
 		}
@@ -182,7 +179,7 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 			return nil
 		}
 
-		resp, err := r.lvService.CreateLV(ctx, &proto.CreateLVRequest{Name: string(lv.UID), DeviceClass: lv.Spec.DeviceClass, SizeGb: uint64(reqBytes >> 30)})
+		volume, err := r.lvmc.CreateLV(string(lv.UID), lv.Spec.DeviceClass, uint64(reqBytes), []string{})
 		if err != nil {
 			code, message := extractFromError(err)
 			log.Error(err, message)
@@ -191,7 +188,7 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 			return err
 		}
 
-		lv.Status.VolumeID = resp.Volume.Name
+		lv.Status.VolumeID = volume.Name
 		lv.Status.CurrentSize = resource.NewQuantity(reqBytes, resource.BinarySI)
 		lv.Status.Code = codes.OK
 		lv.Status.Message = ""
@@ -231,7 +228,7 @@ func (r *LogicalVolumeReconciler) expandLV(ctx context.Context, log logr.Logger,
 	reqBytes := lv.Spec.Size.Value()
 
 	err := func() error {
-		_, err := r.lvService.ResizeLV(ctx, &proto.ResizeLVRequest{Name: string(lv.UID), SizeGb: uint64(reqBytes >> 30), DeviceClass: lv.Spec.DeviceClass})
+		err := r.lvmc.ResizeLV(string(lv.UID), lv.Spec.DeviceClass, uint64(reqBytes))
 		if err != nil {
 			code, message := extractFromError(err)
 			log.Error(err, message)

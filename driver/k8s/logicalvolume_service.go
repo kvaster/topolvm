@@ -55,8 +55,8 @@ func NewLogicalVolumeService(mgr manager.Manager) (*LogicalVolumeService, error)
 }
 
 // CreateVolume creates volume
-func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name string, requestGb int64) (string, error) {
-	logger.Info("k8s.CreateVolume called", "name", name, "node", node, "size_gb", requestGb)
+func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name string, requestBytes int64) (string, error) {
+	logger.Info("k8s.CreateVolume called", "name", name, "node", node, "size", requestBytes)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -72,7 +72,7 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name 
 			Name:        name,
 			NodeName:    node,
 			DeviceClass: dc,
-			Size:        *resource.NewQuantity(requestGb<<30, resource.BinarySI),
+			Size:        *resource.NewQuantity(requestBytes, resource.BinarySI),
 		},
 	}
 
@@ -144,8 +144,8 @@ func (s *LogicalVolumeService) DeleteVolume(ctx context.Context, volumeID string
 }
 
 // ExpandVolume expands volume
-func (s *LogicalVolumeService) ExpandVolume(ctx context.Context, volumeID string, requestGb int64) error {
-	logger.Info("k8s.ExpandVolume called", "volumeID", volumeID, "requestGb", requestGb)
+func (s *LogicalVolumeService) ExpandVolume(ctx context.Context, volumeID string, requestBytes int64) error {
+	logger.Info("k8s.ExpandVolume called", "volumeID", volumeID, "requestBytes", requestBytes)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -154,7 +154,7 @@ func (s *LogicalVolumeService) ExpandVolume(ctx context.Context, volumeID string
 		return err
 	}
 
-	err = s.UpdateSpecSize(ctx, volumeID, resource.NewQuantity(requestGb<<30, resource.BinarySI))
+	err = s.UpdateSpecSize(ctx, volumeID, resource.NewQuantity(requestBytes, resource.BinarySI))
 	if err != nil {
 		return err
 	}

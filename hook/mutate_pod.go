@@ -178,9 +178,7 @@ func (m podMutator) requestedPVCCapacity(ctx context.Context, pod *corev1.Pod, t
 
 		var requested int64 = topolvm.DefaultSize
 		if req, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
-			if req.Value() > topolvm.DefaultSize {
-				requested = ((req.Value()-1)>>30 + 1) << 30
-			}
+			requested = req.Value()
 		}
 		dc, ok := sc.Parameters[topolvm.DeviceClassKey]
 		if !ok {
@@ -208,7 +206,7 @@ func (m podMutator) requestedEphemeralCapacity(pod *corev1.Pod) (int64, error) {
 					)
 					return 0, err
 				}
-				total += volSize << 30
+				total += volSize
 			} else {
 				total += topolvm.DefaultSize
 			}

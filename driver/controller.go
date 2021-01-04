@@ -74,7 +74,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		}
 	}
 
-	requestGb, err := convertRequestCapacity(req.GetCapacityRange().GetRequiredBytes(), req.GetCapacityRange().GetLimitBytes())
+	requestBytes, err := convertRequestCapacity(req.GetCapacityRange().GetRequiredBytes(), req.GetCapacityRange().GetLimitBytes())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
@@ -95,7 +95,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		if nodeName == "" {
 			return nil, status.Error(codes.Internal, "can not find any node")
 		}
-		if capacity < (requestGb << 30) {
+		if capacity < requestBytes {
 			return nil, status.Errorf(codes.Internal, "can not find enough volume space %d", capacity)
 		}
 		node = nodeName
@@ -126,7 +126,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	name = strings.ToLower(name)
 
-	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceClass, name, requestGb)
+	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceClass, name, requestBytes)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {
@@ -137,7 +137,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 
 	return &csi.CreateVolumeResponse{
 		Volume: &csi.Volume{
-			CapacityBytes: requestGb << 30,
+			CapacityBytes: requestBytes,
 			VolumeId:      volumeID,
 			AccessibleTopology: []*csi.Topology{
 				{
@@ -309,14 +309,14 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	requestGb, err := convertRequestCapacity(req.GetCapacityRange().GetRequiredBytes(), req.GetCapacityRange().GetLimitBytes())
+	requestBytes, err := convertRequestCapacity(req.GetCapacityRange().GetRequiredBytes(), req.GetCapacityRange().GetLimitBytes())
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	currentSize := lv.Status.CurrentSize
 	if currentSize == nil {
-		// fill currentGb for old volume created in v0.3.0 or before.
+		// fill current size for old volume created in v0.3.0 or before.
 		err := s.lvService.UpdateCurrentSize(ctx, volumeID, &lv.Spec.Size)
 		if err != nil {
 			return nil, status.Error(codes.Internal, err.Error())
@@ -324,12 +324,12 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 		currentSize = &lv.Spec.Size
 	}
 
-	currentGb := currentSize.Value() >> 30
-	if requestGb <= currentGb {
+	currentBytes := currentSize.Value() >> 30
+	if requestBytes <= currentBytes {
 		// "NodeExpansionRequired" is still true because it is unknown
 		// whether node expansion is completed or not.
 		return &csi.ControllerExpandVolumeResponse{
-			CapacityBytes:         currentGb << 30,
+			CapacityBytes:         currentBytes,
 			NodeExpansionRequired: true,
 		}, nil
 	}
@@ -338,11 +338,11 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	if capacity < (requestGb<<30 - currentGb<<30) {
+	if capacity < (requestBytes - currentBytes) {
 		return nil, status.Error(codes.Internal, "not enough space")
 	}
 
-	err = s.lvService.ExpandVolume(ctx, volumeID, requestGb)
+	err = s.lvService.ExpandVolume(ctx, volumeID, requestBytes)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {
@@ -351,7 +351,7 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 		return nil, err
 	}
 	return &csi.ControllerExpandVolumeResponse{
-		CapacityBytes:         requestGb << 30,
+		CapacityBytes:         requestBytes,
 		NodeExpansionRequired: true,
 	}, nil
 }

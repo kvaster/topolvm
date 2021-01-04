@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 
-	lvmd "github.com/topolvm/topolvm/pkg/lvmd/cmd"
 	controller "github.com/topolvm/topolvm/pkg/topolvm-controller/cmd"
 	node "github.com/topolvm/topolvm/pkg/topolvm-node/cmd"
 	scheduler "github.com/topolvm/topolvm/pkg/topolvm-scheduler/cmd"
@@ -18,7 +17,6 @@ COMMAND:
     topolvm-controller:  TopoLVM CSI controller service.
     topolvm-node:        TopoLVM CSI node service.
     topolvm-scheduler:   Scheduler extender.
-    lvmd:                gRPC service to manage LVM volumes.
 `)
 }
 
@@ -34,8 +32,6 @@ func main() {
 	}
 
 	switch name {
-	case "lvmd":
-		lvmd.Execute()
 	case "topolvm-scheduler":
 		scheduler.Execute()
 	case "topolvm-node":

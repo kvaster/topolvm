@@ -2,15 +2,12 @@ package runners
 
 import (
 	"context"
-	"io"
+	"github.com/topolvm/topolvm/lvm"
 	"strconv"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/topolvm/topolvm"
-	"github.com/topolvm/topolvm/lvmd/proto"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -23,24 +20,18 @@ const metricsNamespace = "topolvm"
 
 var meLogger = ctrl.Log.WithName("runners").WithName("metrics_exporter")
 
-// NodeMetrics is a set of metrics of a TopoLVM Node.
-type NodeMetrics struct {
-	FreeBytes   uint64
-	DeviceClass string
-}
-
 type metricsExporter struct {
 	client.Client
 	nodeName       string
-	vgService      proto.VGServiceClient
 	availableBytes *prometheus.GaugeVec
+	lvmc           lvm.Client
 }
 
 var _ manager.LeaderElectionRunnable = &metricsExporter{}
 
 // NewMetricsExporter creates controller-runtime's manager.Runnable to run
 // a metrics exporter for a node.
-func NewMetricsExporter(conn *grpc.ClientConn, mgr manager.Manager, nodeName string) manager.Runnable {
+func NewMetricsExporter(mgr manager.Manager, lvmc lvm.Client, nodeName string) manager.Runnable {
 	availableBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   metricsNamespace,
 		Subsystem:   "volumegroup",
@@ -53,21 +44,21 @@ func NewMetricsExporter(conn *grpc.ClientConn, mgr manager.Manager, nodeName str
 	return &metricsExporter{
 		Client:         mgr.GetClient(),
 		nodeName:       nodeName,
-		vgService:      proto.NewVGServiceClient(conn),
 		availableBytes: availableBytes,
+		lvmc:			lvmc,
 	}
 }
 
 // Start implements controller-runtime's manager.Runnable.
 func (m *metricsExporter) Start(ch <-chan struct{}) error {
-	metricsCh := make(chan NodeMetrics)
+	metricsCh := make(chan *lvm.DeviceClassStats)
 	go func() {
 		for {
 			select {
 			case <-ch:
 				return
 			case met := <-metricsCh:
-				m.availableBytes.WithLabelValues(met.DeviceClass).Set(float64(met.FreeBytes))
+				m.availableBytes.WithLabelValues(met.DeviceClass).Set(float64(met.TotalBytes - met.UsedBytes))
 			}
 		}
 	}()
@@ -78,11 +69,26 @@ func (m *metricsExporter) Start(ch <-chan struct{}) error {
 		cancel()
 	}()
 
-	wc, err := m.vgService.Watch(ctx, &proto.Empty{})
-	if err != nil {
+	// make first update as soon as we start
+	// cause node Finalizer is updated here and it's not good...
+	// probably this should be fixed somehow
+	if err := m.updateNode(ctx, metricsCh); err != nil {
 		return err
 	}
-	return m.updateNode(ctx, wc, metricsCh)
+
+	ticker := time.NewTicker(10 * time.Minute)
+	for {
+		select {
+		case <-ctx.Done():
+			ticker.Stop()
+			return nil
+		case <-ticker.C:
+			if err := m.updateNode(ctx, metricsCh); err != nil {
+				ticker.Stop()
+				return err
+			}
+		}
+	}
 }
 
 // NeedLeaderElection implements controller-runtime's manager.LeaderElectionRunnable.
@@ -90,56 +96,49 @@ func (m *metricsExporter) NeedLeaderElection() bool {
 	return false
 }
 
-func (m *metricsExporter) updateNode(ctx context.Context, wc proto.VGService_WatchClient, ch chan<- NodeMetrics) error {
-	for {
-		res, err := wc.Recv()
-		switch {
-		case err == io.EOF:
-			return nil
-		case status.Code(err) == codes.Canceled:
-			return nil
-		case err == nil:
-		default:
-			return err
-		}
+func (m *metricsExporter) updateNode(ctx context.Context, ch chan<- *lvm.DeviceClassStats) error {
+	stats, err := m.lvmc.NodeStats()
 
-		for _, item := range res.Items {
-			ch <- NodeMetrics{
-				DeviceClass: item.DeviceClass,
-				FreeBytes:   item.FreeBytes,
-			}
-		}
+	if err != nil {
+		return err
+	}
 
-		var node corev1.Node
-		if err := m.Get(ctx, types.NamespacedName{Name: m.nodeName}, &node); err != nil {
-			return err
-		}
+	for _, s := range stats.DeviceClasses {
+		ch <- s
+	}
 
-		if node.DeletionTimestamp != nil {
-			meLogger.Info("node is deleting")
+	var node corev1.Node
+	if err := m.Get(ctx, types.NamespacedName{Name: m.nodeName}, &node); err != nil {
+		return err
+	}
+
+	if node.DeletionTimestamp != nil {
+		meLogger.Info("node is deleting")
+		return nil
+	}
+
+	node2 := node.DeepCopy()
+
+	var hasFinalizer bool
+	for _, fin := range node.Finalizers {
+		if fin == topolvm.NodeFinalizer {
+			hasFinalizer = true
 			break
 		}
+	}
+	if !hasFinalizer {
+		node2.Finalizers = append(node2.Finalizers, topolvm.NodeFinalizer)
+	}
 
-		node2 := node.DeepCopy()
+	if stats.Default != nil {
+		node2.Annotations[topolvm.CapacityKeyPrefix+topolvm.DefaultDeviceClassAnnotationName] = strconv.FormatUint(stats.Default.TotalBytes - stats.Default.UsedBytes, 10)
+	}
 
-		var hasFinalizer bool
-		for _, fin := range node.Finalizers {
-			if fin == topolvm.NodeFinalizer {
-				hasFinalizer = true
-				break
-			}
-		}
-		if !hasFinalizer {
-			node2.Finalizers = append(node2.Finalizers, topolvm.NodeFinalizer)
-		}
-
-		node2.Annotations[topolvm.CapacityKeyPrefix+topolvm.DefaultDeviceClassAnnotationName] = strconv.FormatUint(res.FreeBytes, 10)
-		for _, item := range res.Items {
-			node2.Annotations[topolvm.CapacityKeyPrefix+item.DeviceClass] = strconv.FormatUint(item.FreeBytes, 10)
-		}
-		if err := m.Patch(ctx, node2, client.MergeFrom(&node)); err != nil {
-			return err
-		}
+	for _, s := range stats.DeviceClasses {
+		node2.Annotations[topolvm.CapacityKeyPrefix+s.DeviceClass] = strconv.FormatUint(s.TotalBytes - s.UsedBytes, 10)
+	}
+	if err := m.Patch(ctx, node2, client.MergeFrom(&node)); err != nil {
+		return err
 	}
 
 	return nil

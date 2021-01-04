@@ -40,17 +40,7 @@ csi/csi_grpc.pb.go: csi.proto
 	mkdir -p csi
 	$(PROTOC) --go-grpc_out=module=github.com/topolvm/topolvm:. $<
 
-lvmd/proto/lvmd.pb.go: lvmd/proto/lvmd.proto
-	$(PROTOC) --go_out=module=github.com/topolvm/topolvm:. $<
-
-lvmd/proto/lvmd_grpc.pb.go: lvmd/proto/lvmd.proto
-	$(PROTOC) --go-grpc_out=module=github.com/topolvm/topolvm:. $<
-
-docs/lvmd-protocol.md: lvmd/proto/lvmd.proto
-	$(PROTOC) --doc_out=./docs --doc_opt=markdown,$@ $<
-
-PROTOBUF_GEN = csi/csi.pb.go csi/csi_grpc.pb.go \
-	lvmd/proto/lvmd.pb.go lvmd/proto/lvmd_grpc.pb.go docs/lvmd-protocol.md
+PROTOBUF_GEN = csi/csi.pb.go csi/csi_grpc.pb.go
 
 .PHONY: test
 test:
@@ -86,15 +76,11 @@ check-uncommitted:
 	git diff --exit-code --name-only
 
 .PHONY: build
-build: build/hypertopolvm build/lvmd csi-sidecars
+build: build/hypertopolvm csi-sidecars
 
 build/hypertopolvm: $(GO_FILES)
 	mkdir -p build
 	go build -o $@ -ldflags "-X github.com/topolvm/topolvm.Version=$(TOPOLVM_VERSION)" ./pkg/hypertopolvm
-
-build/lvmd:
-	mkdir -p build
-	CGO_ENABLED=0 go build -o $@ -ldflags "-X github.com/topolvm/topolvm.Version=$(TOPOLVM_VERSION)" ./pkg/lvmd
 
 .PHONY: csi-sidecars
 csi-sidecars:
