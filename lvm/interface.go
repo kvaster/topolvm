@@ -1,9 +1,11 @@
 package lvm
 
+import "sigs.k8s.io/controller-runtime/pkg/manager"
+
 type LogicalVolume struct {
 	Name        string
 	DeviceClass string
-	SizeGb      uint64
+	Size        uint64
 	Tags        []string
 }
 
@@ -23,6 +25,8 @@ type DeviceClassStats struct {
 }
 
 type Client interface {
+	manager.Runnable
+
 	GetLVList(deviceClass string) ([]*LogicalVolume, error)
 	CreateLV(name, deviceClass string, size uint64, tags []string) (*LogicalVolume, error)
 	RemoveLV(name, deviceClass string) error
@@ -35,5 +39,5 @@ type Client interface {
 }
 
 func New(path string) (Client, error) {
-	return &btrfs{poolPath: path}, nil
+	return newBtrfs(path)
 }

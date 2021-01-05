@@ -21,6 +21,7 @@ require (
 	github.com/pseudomuto/protoc-gen-doc v1.3.2
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/viper v1.7.1
+	github.com/fsnotify/fsnotify v1.4.9
 	golang.org/x/sys v0.0.0-20200922070232-aee5d888a860
 	google.golang.org/grpc v1.32.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.0.0

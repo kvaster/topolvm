@@ -57,6 +57,9 @@ func subMain() error {
 		setupLog.Error(err, "unable to create lvm client")
 		return err
 	}
+	if err := mgr.Add(lvmc); err != nil {
+		return err
+	}
 
 	lvcontroller := controllers.NewLogicalVolumeReconciler(
 		mgr.GetClient(),
