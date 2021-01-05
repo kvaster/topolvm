@@ -64,6 +64,8 @@ func newBtrfs(path string) (*btrfs, error) {
 }
 
 func (c *btrfs) GetLVList(deviceClass string) ([]*LogicalVolume, error) {
+	btrfsLogger.Info("GetLVList", "DeviceClass", deviceClass)
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -76,10 +78,14 @@ func (c *btrfs) GetLVList(deviceClass string) ([]*LogicalVolume, error) {
 		}
 	}
 
+	btrfsLogger.Info("GetLVList OK", "Volumes", volumes)
+
 	return volumes, nil
 }
 
 func (c *btrfs) CreateLV(name, deviceClass string, size uint64, tags []string) (*LogicalVolume, error) {
+	btrfsLogger.Info("CreateLV", "Name", name, "DeviceClass", deviceClass, "Size", size)
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -103,10 +109,14 @@ func (c *btrfs) CreateLV(name, deviceClass string, size uint64, tags []string) (
 
 	dc.Volumes = append(dc.Volumes, &btrfsVolume{Name: name, Size: size})
 
+	btrfsLogger.Info("CreateLV OK")
+
 	return &LogicalVolume{Name: name, DeviceClass: deviceClass, Size: size, Tags: tags}, nil
 }
 
 func (c *btrfs) RemoveLV(name, deviceClass string) error {
+	btrfsLogger.Info("RemoveLV", "Name", name, "DeviceClass", deviceClass)
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -129,10 +139,14 @@ func (c *btrfs) RemoveLV(name, deviceClass string) error {
 
 	dc.removeVolume(name)
 
+	btrfsLogger.Info("RemoveLV OK")
+
 	return nil
 }
 
 func (c *btrfs) ResizeLV(name, deviceClass string, size uint64) error {
+	btrfsLogger.Info("RemoveLV", "Name", name, "DeviceClass", deviceClass, "Size", size)
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -155,6 +169,8 @@ func (c *btrfs) ResizeLV(name, deviceClass string, size uint64) error {
 
 	v.Size = size
 
+	btrfsLogger.Info("RemoveLV OK")
+
 	return nil
 }
 
@@ -163,6 +179,8 @@ func (c *btrfs) GetPath(name, deviceClass string) string {
 }
 
 func (c *btrfs) VolumeStats(name, deviceClass string) (*VolumeStats, error) {
+	btrfsLogger.Info("VolumeStats", "Name", name, "DeviceClass", deviceClass)
+
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -182,10 +200,14 @@ func (c *btrfs) VolumeStats(name, deviceClass string) (*VolumeStats, error) {
 		return nil, err
 	}
 
+	btrfsLogger.Info("VolumeStats OK")
+
 	return &VolumeStats{TotalBytes: limit, UsedBytes: used}, nil
 }
 
 func (c *btrfs) NodeStats() (*NodeStats, error) {
+	btrfsLogger.Info("NodeStats")
+
 	var defaultDc *DeviceClassStats
 	var stats []*DeviceClassStats
 
@@ -200,6 +222,8 @@ func (c *btrfs) NodeStats() (*NodeStats, error) {
 			defaultDc = s
 		}
 	}
+
+	btrfsLogger.Info("NodeStats OK")
 
 	return &NodeStats{DeviceClasses: stats, Default: defaultDc}, nil
 }
@@ -368,8 +392,8 @@ func parseSubvolume(path string) (uint64, uint64, error) {
 	}
 
 	lines := strings.Split(out, "\n")
-	var limit uint64 = -1
-	var used uint64 = -1
+	var limit uint64 = 0
+	var used uint64 = 0
 	for _, line := range lines {
 		if m := limitRegexp.FindStringSubmatch(line); m != nil {
 			limit, err = strconv.ParseUint(m[1], 10, 64)
@@ -384,7 +408,7 @@ func parseSubvolume(path string) (uint64, uint64, error) {
 		}
 	}
 
-	if limit <= 0 || used <= 0 {
+	if limit == 0 || used == 0 {
 		return 0, 0, subvolParseError
 	}
 

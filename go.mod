@@ -9,6 +9,7 @@ require (
 	github.com/container-storage-interface/spec v1.1.0
 	github.com/cybozu-go/log v1.5.0 // indirect
 	github.com/cybozu-go/well v1.10.0
+	github.com/fsnotify/fsnotify v1.4.9
 	github.com/go-logr/logr v0.1.0
 	github.com/golang/protobuf v1.4.2
 	github.com/google/go-cmp v0.5.2
@@ -21,8 +22,7 @@ require (
 	github.com/pseudomuto/protoc-gen-doc v1.3.2
 	github.com/spf13/cobra v1.0.0
 	github.com/spf13/viper v1.7.1
-	github.com/fsnotify/fsnotify v1.4.9
-	golang.org/x/sys v0.0.0-20200922070232-aee5d888a860
+	golang.org/x/sys v0.0.0-20200922070232-aee5d888a860 // indirect
 	google.golang.org/grpc v1.32.0
 	google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.0.0
 	google.golang.org/protobuf v1.25.0
