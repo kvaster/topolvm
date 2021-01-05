@@ -59,9 +59,10 @@ spec:
           image: quay.io/topolvm/topolvm:latest
           securityContext:
             privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
           command:
             - /topolvm-node
-            - --lvmd-socket=/run/lvmd/lvmd.sock
           ports:
             - containerPort: 9808
               name: healthz
@@ -82,8 +83,8 @@ spec:
           volumeMounts:
             - name: node-plugin-dir
               mountPath: /run/topolvm
-            - name: lvmd-socket-dir
-              mountPath: /run/lvmd
+            - name: mount-pool
+              mountPath: /mnt/pool
             - name: pod-volumes-dir
               mountPath: /var/lib/kubelet/pods
               mountPropagation: "Bidirectional"
@@ -133,7 +134,7 @@ spec:
           hostPath:
             path: /var/lib/kubelet/pods/
             type: DirectoryOrCreate
-        - name: lvmd-socket-dir
+        - name: mount-pool
           hostPath:
-            path: /run/topolvm
-            type: Directory
+            path: /mnt/pool
+            type: DirectoryOrCreate

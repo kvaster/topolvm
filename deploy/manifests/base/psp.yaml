@@ -5,6 +5,8 @@ metadata:
 spec:
   privileged: true
   allowPrivilegeEscalation: true
+  defaultAddCapabilities:
+    add: ["SYS_ADMIN"]
   volumes:
     - 'configMap'
     - 'emptyDir'
@@ -14,6 +16,8 @@ spec:
   - pathPrefix: "/var/lib/kubelet"
     readOnly: false
   - pathPrefix: "/run/topolvm"
+    readOnly: false
+  - pathPrefix: "/mnt/pool"
     readOnly: false
   hostNetwork: false
   runAsUser:

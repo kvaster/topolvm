@@ -4,6 +4,6 @@ metadata:
   name: topolvm-provisioner
 provisioner: topolvm.cybozu.com
 parameters:
-  "csi.storage.k8s.io/fstype": "xfs"
+  "csi.storage.k8s.io/fstype": "btrfs"
 volumeBindingMode: WaitForFirstConsumer
 allowVolumeExpansion: true

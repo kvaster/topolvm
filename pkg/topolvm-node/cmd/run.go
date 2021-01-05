@@ -52,7 +52,7 @@ func subMain() error {
 		return err
 	}
 
-	lvmc, err := lvm.New("/pool")
+	lvmc, err := lvm.New("/mnt/pool")
 	if err != nil {
 		setupLog.Error(err, "unable to create lvm client")
 		return err
