@@ -76,12 +76,19 @@ func (m *metricsExporter) Start(ch <-chan struct{}) error {
 		return err
 	}
 
+	watch := m.lvmc.Watch()
+
 	ticker := time.NewTicker(10 * time.Minute)
 	for {
 		select {
 		case <-ctx.Done():
 			ticker.Stop()
 			return nil
+		case <-watch:
+			if err := m.updateNode(ctx, metricsCh); err != nil {
+				ticker.Stop()
+				return err
+			}
 		case <-ticker.C:
 			if err := m.updateNode(ctx, metricsCh); err != nil {
 				ticker.Stop()

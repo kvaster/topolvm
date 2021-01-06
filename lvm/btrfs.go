@@ -57,10 +57,23 @@ type btrfs struct {
 
 	deviceClasses []*deviceClass
 	mu            sync.Mutex
+	watches       []chan struct{}
 }
 
 func newBtrfs(path string) (*btrfs, error) {
 	return &btrfs{poolPath: path}, nil
+}
+
+func (c *btrfs) Watch() chan struct{} {
+	ch := make(chan struct{})
+	c.watches = append(c.watches, ch)
+	return ch
+}
+
+func (c *btrfs) notify() {
+	for _, w := range c.watches {
+		w <- struct{}{}
+	}
 }
 
 func (c *btrfs) GetLVList(deviceClass string) ([]*LogicalVolume, error) {
@@ -109,6 +122,8 @@ func (c *btrfs) CreateLV(name, deviceClass string, size uint64, tags []string) (
 
 	dc.Volumes = append(dc.Volumes, &btrfsVolume{Name: name, Size: size})
 
+	c.notify()
+
 	btrfsLogger.Info("CreateLV OK")
 
 	return &LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size, Tags: tags}, nil
@@ -139,6 +154,8 @@ func (c *btrfs) RemoveLV(name, deviceClass string) error {
 
 	dc.removeVolume(name)
 
+	c.notify()
+
 	btrfsLogger.Info("RemoveLV OK")
 
 	return nil
@@ -168,6 +185,8 @@ func (c *btrfs) ResizeLV(name, deviceClass string, size uint64) error {
 	}
 
 	v.Size = size
+
+	c.notify()
 
 	btrfsLogger.Info("RemoveLV OK")
 

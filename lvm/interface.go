@@ -36,6 +36,8 @@ type Client interface {
 
 	VolumeStats(name, deviceClass string) (*VolumeStats, error)
 	NodeStats() (*NodeStats, error)
+
+	Watch() chan struct{}
 }
 
 func New(path string) (Client, error) {
