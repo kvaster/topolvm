@@ -416,6 +416,8 @@ func (c *btrfs) loadConfig() {
 
 	c.deviceClasses = dcs
 
+	c.notify()
+
 	btrfsLogger.Info("Config loaded")
 }
 
