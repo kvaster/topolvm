@@ -5,8 +5,6 @@ metadata:
 spec:
   privileged: true
   allowPrivilegeEscalation: true
-  defaultAddCapabilities:
-    add: ["SYS_ADMIN"]
   volumes:
     - 'configMap'
     - 'emptyDir'

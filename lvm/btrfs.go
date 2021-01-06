@@ -74,7 +74,7 @@ func (c *btrfs) GetLVList(deviceClass string) ([]*LogicalVolume, error) {
 	dc := c.findDeviceClass(deviceClass)
 	if dc != nil {
 		for _, v := range dc.Volumes {
-			volumes = append(volumes, &LogicalVolume{Name: v.Name, DeviceClass: deviceClass, Size: v.Size, Tags: []string{}})
+			volumes = append(volumes, &LogicalVolume{Name: v.Name, DeviceClass: dc.Name, Size: v.Size, Tags: []string{}})
 		}
 	}
 
@@ -94,7 +94,7 @@ func (c *btrfs) CreateLV(name, deviceClass string, size uint64, tags []string) (
 		return nil, noDeviceClassError
 	}
 
-	path := c.GetPath(name, deviceClass)
+	path := c.GetPath(name, dc.Name)
 
 	_, err := runCmd("/sbin/btrfs", "subvol", "create", path)
 	if err != nil {
@@ -111,7 +111,7 @@ func (c *btrfs) CreateLV(name, deviceClass string, size uint64, tags []string) (
 
 	btrfsLogger.Info("CreateLV OK")
 
-	return &LogicalVolume{Name: name, DeviceClass: deviceClass, Size: size, Tags: tags}, nil
+	return &LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size, Tags: tags}, nil
 }
 
 func (c *btrfs) RemoveLV(name, deviceClass string) error {
@@ -130,9 +130,9 @@ func (c *btrfs) RemoveLV(name, deviceClass string) error {
 		return noVolumeError
 	}
 
-	path := c.GetPath(name, deviceClass)
+	path := c.GetPath(name, dc.Name)
 
-	_, err := runCmd("/bin/btrfs", "subvol", "delete", path)
+	_, err := runCmd("/sbin/btrfs", "subvol", "delete", path)
 	if err != nil {
 		return err
 	}
@@ -160,7 +160,7 @@ func (c *btrfs) ResizeLV(name, deviceClass string, size uint64) error {
 		return noVolumeError
 	}
 
-	path := c.GetPath(name, deviceClass)
+	path := c.GetPath(name, dc.Name)
 
 	_, err := runCmd("/sbin/btrfs", "qgroup", "limit", strconv.FormatUint(size, 10), path)
 	if err != nil {
@@ -194,7 +194,7 @@ func (c *btrfs) VolumeStats(name, deviceClass string) (*VolumeStats, error) {
 		return nil, noVolumeError
 	}
 
-	path := c.GetPath(name, deviceClass)
+	path := c.GetPath(name, dc.Name)
 	limit, used, err := parseSubvolume(path)
 	if err != nil {
 		return nil, err
@@ -230,7 +230,7 @@ func (c *btrfs) NodeStats() (*NodeStats, error) {
 
 func (c *btrfs) findDeviceClass(name string) *deviceClass {
 	for _, d := range c.deviceClasses {
-		if name == d.Name {
+		if name == d.Name || (name == "" && d.Default) {
 			return d
 		}
 	}
@@ -259,6 +259,8 @@ func (d *deviceClass) removeVolume(name string) {
 }
 
 func (c *btrfs) Start(ch <-chan struct{}) error {
+	btrfsLogger.Info("Starting BTRFS watcher")
+
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
@@ -268,17 +270,22 @@ func (c *btrfs) Start(ch <-chan struct{}) error {
 
 	w, err := fsnotify.NewWatcher()
 	if err != nil {
+		btrfsLogger.Error(err, "Error creating watcher")
 		return err
 	}
-	if err := w.Add(filepath.Join(c.poolPath, configFile)); err != nil {
+	if err := w.Add(c.poolPath); err != nil {
+		btrfsLogger.Error(err, "Error watching for configFile dir")
 		return err
 	}
 
 	c.loadConfigWithInfo()
 
+	btrfsLogger.Info("Starting WATCH")
+
 	for {
 		select {
 		case <-ctx.Done():
+			btrfsLogger.Info("Finishing")
 			return nil
 		case event, ok := <-w.Events:
 			if !ok {
@@ -286,8 +293,12 @@ func (c *btrfs) Start(ch <-chan struct{}) error {
 				return watchError
 			}
 
+			btrfsLogger.Info("Watch event", "Name", event.Name, "Op", event.Op)
+
 			if event.Op & (fsnotify.Create | fsnotify.Write | fsnotify.Remove | fsnotify.Rename) != 0 {
-				c.loadConfigWithInfo()
+				if filepath.Base(event.Name) == configFile {
+					c.loadConfigWithInfo()
+				}
 			}
 
 			break
@@ -366,7 +377,7 @@ func (c *btrfs) loadConfig() error {
 		dc.Default = dcc.Default
 		size, err := resource.ParseQuantity(dcc.Size)
 		if err != nil {
-			btrfsLogger.Info("Can't parse size", "DeviceClass", dcc.Name, "Size", dcc.Size)
+			btrfsLogger.Error(err, "Can't parse size", "DeviceClass", dcc.Name, "Size", dcc.Size)
 			return nil
 		}
 		dc.Size = uint64(size.Value())
@@ -416,6 +427,8 @@ func parseSubvolume(path string) (uint64, uint64, error) {
 }
 
 func runCmd(cmd string, args ...string) (string, error) {
+	btrfsLogger.Info("Running cmd", "cmd", cmd, "args", args)
+
 	c := exec.Command(cmd, args...)
 	c.Stderr = c.Stdout
 

@@ -1,5 +1,5 @@
 # Build Container
-FROM golang:1.13-buster AS build-env
+FROM golang:1.15-alpine AS build-env
 
 # Get argment
 ARG TOPOLVM_VERSION
@@ -7,18 +7,13 @@ ARG TOPOLVM_VERSION
 COPY . /workdir
 WORKDIR /workdir
 
-RUN make build TOPOLVM_VERSION=${TOPOLVM_VERSION}
+RUN apk add --update make curl bash && make build TOPOLVM_VERSION=${TOPOLVM_VERSION}
 
 # TopoLVM container
-FROM ubuntu:18.04
+FROM alpine:edge
 
 ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update \
-    && apt-get -y install --no-install-recommends \
-        file \
-        btrfs-progs \
-        xfsprogs \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache btrfs-progs
 
 COPY --from=build-env /workdir/build/hypertopolvm /hypertopolvm
 

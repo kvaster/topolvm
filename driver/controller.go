@@ -165,7 +165,7 @@ func convertRequestCapacity(requestBytes, limitBytes int64) (int64, error) {
 	if requestBytes == 0 {
 		return 1, nil
 	}
-	return (requestBytes-1)>>30 + 1, nil
+	return requestBytes, nil
 }
 
 func (s controllerService) DeleteVolume(ctx context.Context, req *csi.DeleteVolumeRequest) (*csi.DeleteVolumeResponse, error) {

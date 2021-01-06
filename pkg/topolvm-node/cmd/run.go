@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 	"github.com/spf13/viper"
+	"github.com/topolvm/topolvm"
 	topolvmv1 "github.com/topolvm/topolvm/api/v1"
 	"github.com/topolvm/topolvm/controllers"
 	"github.com/topolvm/topolvm/csi"
@@ -11,10 +13,15 @@ import (
 	"github.com/topolvm/topolvm/lvm"
 	"github.com/topolvm/topolvm/runners"
 	"google.golang.org/grpc"
+	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"time"
+
 	// +kubebuilder:scaffold:imports
 )
 
@@ -74,6 +81,12 @@ func subMain() error {
 	}
 	// +kubebuilder:scaffold:builder
 
+	// Add health checker to manager
+	checker := runners.NewChecker(checkFunc(mgr.GetAPIReader()), 1*time.Minute)
+	if err := mgr.Add(checker); err != nil {
+		return err
+	}
+
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
 	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
@@ -87,6 +100,7 @@ func subMain() error {
 		return err
 	}
 	grpcServer := grpc.NewServer()
+	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService(checker.Ready))
 	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(nodename, lvmc, s))
 	err = mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false))
 	if err != nil {
@@ -100,4 +114,14 @@ func subMain() error {
 	}
 
 	return nil
+}
+
+func checkFunc(r client.Reader) func() error {
+	return func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		var drv storagev1beta1.CSIDriver
+		return r.Get(ctx, types.NamespacedName{Name: topolvm.PluginName}, &drv)
+	}
 }
