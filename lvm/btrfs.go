@@ -380,7 +380,7 @@ func (c *btrfs) loadConfig() {
 
 			var volumes []*btrfsVolume
 			for _, file := range files {
-				limit, _, _, err := parseSubvolume(filepath.Join(c.poolPath, file.Name()))
+				limit, _, _, err := parseSubvolume(filepath.Join(c.poolPath, dcc.Name, file.Name()))
 				if err != nil {
 					btrfsLogger.Info("Error parsing subvolume info", "DeviceClass", dcc.Name, "Path", file.Name(), "Err", err.Error())
 					return
