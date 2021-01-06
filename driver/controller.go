@@ -324,7 +324,7 @@ func (s controllerService) ControllerExpandVolume(ctx context.Context, req *csi.
 		currentSize = &lv.Spec.Size
 	}
 
-	currentBytes := currentSize.Value() >> 30
+	currentBytes := currentSize.Value()
 	if requestBytes <= currentBytes {
 		// "NodeExpansionRequired" is still true because it is unknown
 		// whether node expansion is completed or not.

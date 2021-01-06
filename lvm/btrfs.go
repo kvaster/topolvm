@@ -19,14 +19,15 @@ import (
 
 var btrfsLogger = ctrl.Log.WithName("lvm").WithName("btrfs")
 
-var limitRegexp = regexp.MustCompile(" *Limit referenced: *(\\d+)\\s*")
-var usageRegexp = regexp.MustCompile(" *Usage referenced: *(\\d+)\\s*")
+var limitRegexp = regexp.MustCompile("\\s*Limit referenced:\\s*(\\d+)\\s*")
+var usageRegexp = regexp.MustCompile("\\s*Usage referenced:\\s*(\\d+)\\s*")
+var subvolRegexp = regexp.MustCompile("\\s*Subvolume ID:\\s*(\\d+)\\s*")
 
-var subvolParseError = errors.New("error parsing subvolume info")
-var watchError = errors.New("watch error")
-var execError = errors.New("execute error")
-var noDeviceClassError = errors.New("no such device class")
-var noVolumeError = errors.New("no such volume")
+var errParseInfo = errors.New("error parsing info")
+var errWatch = errors.New("watch error")
+var errExec = errors.New("execute error")
+var errNoDeviceClass = errors.New("no such device class")
+var errNoVolume = errors.New("no such volume")
 
 const configFile = "devices.yml"
 
@@ -91,8 +92,6 @@ func (c *btrfs) GetLVList(deviceClass string) ([]*LogicalVolume, error) {
 		}
 	}
 
-	btrfsLogger.Info("GetLVList OK", "Volumes", volumes)
-
 	return volumes, nil
 }
 
@@ -104,7 +103,7 @@ func (c *btrfs) CreateLV(name, deviceClass string, size uint64, tags []string) (
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return nil, noDeviceClassError
+		return nil, errNoDeviceClass
 	}
 
 	path := c.GetPath(name, dc.Name)
@@ -116,7 +115,7 @@ func (c *btrfs) CreateLV(name, deviceClass string, size uint64, tags []string) (
 
 	_, err = runCmd("/sbin/btrfs", "qgroup", "limit", strconv.FormatUint(size, 10), path)
 	if err != nil {
-		_, _ = runCmd("/sbin/btrfs", "subvol", "delete", path)
+		_ = removeSubvol(path)
 		return nil, err
 	}
 
@@ -124,9 +123,27 @@ func (c *btrfs) CreateLV(name, deviceClass string, size uint64, tags []string) (
 
 	c.notify()
 
-	btrfsLogger.Info("CreateLV OK")
-
 	return &LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size, Tags: tags}, nil
+}
+
+func removeSubvol(path string) error {
+	_, _, subvolId, err := parseSubvolume(path)
+	if err != nil {
+		btrfsLogger.Info("Error parsing subvolume info", "Err", err.Error(), "Path", path)
+		return nil
+	}
+	_, err = runCmd("/sbin/btrfs", "qgroup", "destroy", "0/" + strconv.FormatUint(subvolId, 10), path)
+	if err != nil {
+		btrfsLogger.Info("Warning: error on qgroup destroy", "Err", err.Error(), "Path", path)
+	}
+
+	_, err = runCmd("/sbin/btrfs", "subvol", "delete", path)
+	if err != nil {
+		btrfsLogger.Info("Error on subvol delete", "Err", err.Error(), "Path", path)
+		return err
+	}
+
+	return nil
 }
 
 func (c *btrfs) RemoveLV(name, deviceClass string) error {
@@ -137,18 +154,17 @@ func (c *btrfs) RemoveLV(name, deviceClass string) error {
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return noDeviceClassError
+		return errNoDeviceClass
 	}
 
 	v := dc.findVolume(name)
 	if v == nil {
-		return noVolumeError
+		return errNoVolume
 	}
 
 	path := c.GetPath(name, dc.Name)
 
-	_, err := runCmd("/sbin/btrfs", "subvol", "delete", path)
-	if err != nil {
+	if err := removeSubvol(path); err != nil {
 		return err
 	}
 
@@ -156,25 +172,23 @@ func (c *btrfs) RemoveLV(name, deviceClass string) error {
 
 	c.notify()
 
-	btrfsLogger.Info("RemoveLV OK")
-
 	return nil
 }
 
 func (c *btrfs) ResizeLV(name, deviceClass string, size uint64) error {
-	btrfsLogger.Info("RemoveLV", "Name", name, "DeviceClass", deviceClass, "Size", size)
+	btrfsLogger.Info("ResizeLV", "Name", name, "DeviceClass", deviceClass, "Size", size)
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return noDeviceClassError
+		return errNoDeviceClass
 	}
 
 	v := dc.findVolume(name)
 	if v == nil {
-		return noVolumeError
+		return errNoVolume
 	}
 
 	path := c.GetPath(name, dc.Name)
@@ -187,8 +201,6 @@ func (c *btrfs) ResizeLV(name, deviceClass string, size uint64) error {
 	v.Size = size
 
 	c.notify()
-
-	btrfsLogger.Info("RemoveLV OK")
 
 	return nil
 }
@@ -205,27 +217,26 @@ func (c *btrfs) VolumeStats(name, deviceClass string) (*VolumeStats, error) {
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return nil, noDeviceClassError
+		return nil, errNoDeviceClass
 	}
 
 	v := dc.findVolume(name)
 	if v == nil {
-		return nil, noVolumeError
+		return nil, errNoVolume
 	}
 
 	path := c.GetPath(name, dc.Name)
-	limit, used, err := parseSubvolume(path)
+	limit, used, _, err := parseSubvolume(path)
 	if err != nil {
+		btrfsLogger.Info("Error parsing subvolume info", "DeviceClass", dc.Name, "Name", name, "Err", err.Error())
 		return nil, err
 	}
-
-	btrfsLogger.Info("VolumeStats OK")
 
 	return &VolumeStats{TotalBytes: limit, UsedBytes: used}, nil
 }
 
 func (c *btrfs) NodeStats() (*NodeStats, error) {
-	btrfsLogger.Info("NodeStats")
+	btrfsLogger.Info("NodeStats called")
 
 	var defaultDc *DeviceClassStats
 	var stats []*DeviceClassStats
@@ -241,8 +252,6 @@ func (c *btrfs) NodeStats() (*NodeStats, error) {
 			defaultDc = s
 		}
 	}
-
-	btrfsLogger.Info("NodeStats OK")
 
 	return &NodeStats{DeviceClasses: stats, Default: defaultDc}, nil
 }
@@ -278,7 +287,7 @@ func (d *deviceClass) removeVolume(name string) {
 }
 
 func (c *btrfs) Start(ch <-chan struct{}) error {
-	btrfsLogger.Info("Starting BTRFS watcher")
+	btrfsLogger.Info("Starting config watcher")
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -297,9 +306,7 @@ func (c *btrfs) Start(ch <-chan struct{}) error {
 		return err
 	}
 
-	c.loadConfigWithInfo()
-
-	btrfsLogger.Info("Starting WATCH")
+	c.loadConfig()
 
 	for {
 		select {
@@ -309,14 +316,14 @@ func (c *btrfs) Start(ch <-chan struct{}) error {
 		case event, ok := <-w.Events:
 			if !ok {
 				btrfsLogger.Error(nil, "Not OK on fs event")
-				return watchError
+				return errWatch
 			}
 
 			btrfsLogger.Info("Watch event", "Name", event.Name, "Op", event.Op)
 
 			if event.Op & (fsnotify.Create | fsnotify.Write | fsnotify.Remove | fsnotify.Rename) != 0 {
 				if filepath.Base(event.Name) == configFile {
-					c.loadConfigWithInfo()
+					c.loadConfig()
 				}
 			}
 
@@ -324,7 +331,7 @@ func (c *btrfs) Start(ch <-chan struct{}) error {
 		case err, ok := <-w.Errors:
 			if !ok {
 				btrfsLogger.Error(nil, "Not OK on watch error")
-				return watchError
+				return errWatch
 			}
 			btrfsLogger.Error(err, "Watch error")
 			break
@@ -332,25 +339,20 @@ func (c *btrfs) Start(ch <-chan struct{}) error {
 	}
 }
 
-func (c *btrfs) loadConfigWithInfo() {
-	err := c.loadConfig()
-	if err != nil {
-		btrfsLogger.Error(err, "Error loading config")
-	}
-}
-
-func (c *btrfs) loadConfig() error {
+func (c *btrfs) loadConfig() {
 	btrfsLogger.Info("Loading config")
 
 	b, err := ioutil.ReadFile(filepath.Join(c.poolPath, configFile))
 	if err != nil {
-		return err
+		btrfsLogger.Info("Error loading config file", "Err", err.Error())
+		return
 	}
 
 	cnf := &config{}
 	err = yaml.Unmarshal(b, &cnf)
 	if err != nil {
-		return err
+		btrfsLogger.Info("Error parsing config", "Err", err.Error())
+		return
 	}
 
 	c.mu.Lock()
@@ -372,16 +374,20 @@ func (c *btrfs) loadConfig() error {
 
 			files, err := ioutil.ReadDir(filepath.Join(c.poolPath, dcc.Name))
 			if err != nil {
-				btrfsLogger.Error(err, "Error reading device class path", "DeviceClass", dcc.Name)
-				return err
+				btrfsLogger.Error(err, "Error listing device class path", "DeviceClass", dcc.Name)
+				return
 			}
 
 			var volumes []*btrfsVolume
 			for _, file := range files {
-				limit, _, err := parseSubvolume(filepath.Join(c.poolPath, file.Name()))
+				limit, _, _, err := parseSubvolume(filepath.Join(c.poolPath, file.Name()))
 				if err != nil {
-					btrfsLogger.Error(err, "Error parsing subvolume info", "DeviceClass", dcc.Name)
-					return err
+					btrfsLogger.Info("Error parsing subvolume info", "DeviceClass", dcc.Name, "Path", file.Name(), "Err", err.Error())
+					return
+				}
+				if limit == 0 {
+					btrfsLogger.Info("Error: subvolume limit is undefined", "DeviceClass", dcc.Name, "Path", file.Name())
+					return
 				}
 
 				volumes = append(volumes, &btrfsVolume{Name: file.Name(), Size: limit})
@@ -396,8 +402,8 @@ func (c *btrfs) loadConfig() error {
 		dc.Default = dcc.Default
 		size, err := resource.ParseQuantity(dcc.Size)
 		if err != nil {
-			btrfsLogger.Error(err, "Can't parse size", "DeviceClass", dcc.Name, "Size", dcc.Size)
-			return nil
+			btrfsLogger.Info("Can't parse size", "DeviceClass", dcc.Name, "Size", dcc.Size, "Err", err.Error())
+			return
 		}
 		dc.Size = uint64(size.Value())
 	}
@@ -411,43 +417,47 @@ func (c *btrfs) loadConfig() error {
 	c.deviceClasses = dcs
 
 	btrfsLogger.Info("Config loaded")
-
-	return nil
 }
 
-func parseSubvolume(path string) (uint64, uint64, error) {
+func parseSubvolume(path string) (uint64, uint64, uint64, error) {
 	out, err := runCmd("/sbin/btrfs", "subvol", "show", "--raw", path)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 
-	lines := strings.Split(out, "\n")
 	var limit uint64 = 0
 	var used uint64 = 0
-	for _, line := range lines {
+	var volId uint64 = 0
+
+	for _, line := range strings.Split(out, "\n") {
+		err = nil
+		var name string
 		if m := limitRegexp.FindStringSubmatch(line); m != nil {
 			limit, err = strconv.ParseUint(m[1], 10, 64)
-			if err != nil {
-				return 0, 0, err
-			}
+			name = "limit"
 		} else if m := usageRegexp.FindStringSubmatch(line); m != nil {
 			used, err = strconv.ParseUint(m[1], 10, 64)
-			if err != nil {
-				return 0, 0, err
-			}
+			name = "usage"
+		} else if m := subvolRegexp.FindStringSubmatch(line); m != nil {
+			volId, err = strconv.ParseUint(m[1], 10, 64)
+			name = "subvolId"
+		}
+
+		if err != nil {
+			btrfsLogger.Info("Parse error", "Name", name, "Err", err.Error())
+			return 0, 0, 0, errParseInfo
 		}
 	}
 
-	if limit == 0 || used == 0 {
-		return 0, 0, subvolParseError
+	if volId == 0 {
+		btrfsLogger.Info("No VolumeID", "Path", path)
+		return 0, 0, 0, errParseInfo
 	}
 
-	return limit, used, nil
+	return limit, used, volId, nil
 }
 
 func runCmd(cmd string, args ...string) (string, error) {
-	btrfsLogger.Info("Running cmd", "cmd", cmd, "args", args)
-
 	c := exec.Command(cmd, args...)
 	c.Stderr = c.Stdout
 
@@ -466,8 +476,8 @@ func runCmd(cmd string, args ...string) (string, error) {
 		return "", err
 	}
 	if c.ProcessState.ExitCode() != 0 {
-		btrfsLogger.Info("Exit code is non-zero", "ExitCode", c.ProcessState.ExitCode())
-		return "", execError
+		btrfsLogger.Info("Exit code is non-zero", "ExitCode", c.ProcessState.ExitCode(), "Cmd", cmd, "Args", args)
+		return "", errExec
 	}
 	return string(out), nil
 }
