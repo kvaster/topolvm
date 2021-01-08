@@ -139,7 +139,7 @@ func (s *nodeService) nodePublishFilesystemVolume(req *csi.NodePublishVolumeRequ
 		return nil, status.Errorf(codes.FailedPrecondition, "unsupported access mode: %s", modeName)
 	}
 
-	sourcePath := s.client.GetPath(lv.Name, lv.DeviceClass)
+	sourcePath := s.client.GetPath(lv)
 
 	err := os.MkdirAll(req.GetTargetPath(), 0755)
 	if err != nil {

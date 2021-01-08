@@ -32,7 +32,7 @@ type Client interface {
 	RemoveLV(name, deviceClass string) error
 	ResizeLV(name, deviceClass string, size uint64) error
 
-	GetPath(name, deviceClass string) string
+	GetPath(v *LogicalVolume) string
 
 	VolumeStats(name, deviceClass string) (*VolumeStats, error)
 	NodeStats() (*NodeStats, error)

@@ -41,16 +41,11 @@ type config struct {
 	DeviceClasses []*deviceClassConfig `json:"device-classes"`
 }
 
-type btrfsVolume struct {
-	Name string
-	Size uint64
-}
-
 type deviceClass struct {
 	Name string
 	Default bool
 	Size uint64
-	Volumes []*btrfsVolume
+	Volumes []*LogicalVolume
 }
 
 type btrfs struct {
@@ -106,7 +101,8 @@ func (c *btrfs) CreateLV(name, deviceClass string, size uint64, tags []string) (
 		return nil, errNoDeviceClass
 	}
 
-	path := c.GetPath(name, dc.Name)
+	v := &LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size, Tags: tags}
+	path := c.GetPath(v)
 
 	_, err := runCmd("/sbin/btrfs", "subvol", "create", path)
 	if err != nil {
@@ -119,11 +115,11 @@ func (c *btrfs) CreateLV(name, deviceClass string, size uint64, tags []string) (
 		return nil, err
 	}
 
-	dc.Volumes = append(dc.Volumes, &btrfsVolume{Name: name, Size: size})
+	dc.Volumes = append(dc.Volumes, v)
 
 	c.notify()
 
-	return &LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size, Tags: tags}, nil
+	return v, nil
 }
 
 func removeSubvol(path string) error {
@@ -162,7 +158,7 @@ func (c *btrfs) RemoveLV(name, deviceClass string) error {
 		return errNoVolume
 	}
 
-	path := c.GetPath(name, dc.Name)
+	path := c.GetPath(v)
 
 	if err := removeSubvol(path); err != nil {
 		return err
@@ -191,7 +187,7 @@ func (c *btrfs) ResizeLV(name, deviceClass string, size uint64) error {
 		return errNoVolume
 	}
 
-	path := c.GetPath(name, dc.Name)
+	path := c.GetPath(v)
 
 	_, err := runCmd("/sbin/btrfs", "qgroup", "limit", strconv.FormatUint(size, 10), path)
 	if err != nil {
@@ -205,8 +201,12 @@ func (c *btrfs) ResizeLV(name, deviceClass string, size uint64) error {
 	return nil
 }
 
-func (c *btrfs) GetPath(name, deviceClass string) string {
-	return filepath.Join(c.poolPath, deviceClass, name)
+func (c *btrfs) GetPath(v *LogicalVolume) string {
+	name := v.Name
+	if len(v.Tags) > 0 {
+		name += ":" + strings.Join(v.Tags, ":")
+	}
+	return filepath.Join(c.poolPath, v.DeviceClass, name)
 }
 
 func (c *btrfs) VolumeStats(name, deviceClass string) (*VolumeStats, error) {
@@ -225,7 +225,7 @@ func (c *btrfs) VolumeStats(name, deviceClass string) (*VolumeStats, error) {
 		return nil, errNoVolume
 	}
 
-	path := c.GetPath(name, dc.Name)
+	path := c.GetPath(v)
 	limit, used, _, err := parseSubvolume(path)
 	if err != nil {
 		btrfsLogger.Info("Error parsing subvolume info", "DeviceClass", dc.Name, "Name", name, "Err", err.Error())
@@ -266,7 +266,7 @@ func (c *btrfs) findDeviceClass(name string) *deviceClass {
 	return nil
 }
 
-func (d *deviceClass) findVolume(name string) *btrfsVolume {
+func (d *deviceClass) findVolume(name string) *LogicalVolume {
 	for _, v := range d.Volumes {
 		if name == v.Name {
 			return v
@@ -277,7 +277,7 @@ func (d *deviceClass) findVolume(name string) *btrfsVolume {
 }
 
 func (d *deviceClass) removeVolume(name string) {
-	var vs []*btrfsVolume
+	var vs []*LogicalVolume
 	for _, v := range d.Volumes {
 		if name != v.Name {
 			vs = append(vs, v)
@@ -378,7 +378,7 @@ func (c *btrfs) loadConfig() {
 				return
 			}
 
-			var volumes []*btrfsVolume
+			var volumes []*LogicalVolume
 			for _, file := range files {
 				limit, _, _, err := parseSubvolume(filepath.Join(c.poolPath, dcc.Name, file.Name()))
 				if err != nil {
@@ -390,7 +390,9 @@ func (c *btrfs) loadConfig() {
 					return
 				}
 
-				volumes = append(volumes, &btrfsVolume{Name: file.Name(), Size: limit})
+				names := strings.Split(file.Name(), ":")
+
+				volumes = append(volumes, &LogicalVolume{Name: names[0], Size: limit, DeviceClass: dcc.Name, Tags: names[1:]})
 			}
 
 			dc = &deviceClass{Name: dcc.Name, Volumes: volumes}
