@@ -32,9 +32,6 @@ const PVCFinalizer = "topolvm.cybozu.com/pvc"
 // DefaultCSISocket is the default path of the CSI socket file.
 const DefaultCSISocket = "/run/topolvm/csi-topolvm.sock"
 
-// DefaultLVMdSocket is the default path of the lvmd socket file.
-const DefaultLVMdSocket = "/run/topolvm/lvmd.sock"
-
 // EphemeralVolumeSizeKey is the key used to obtain ephemeral inline volume size
 // from the volume context
 const EphemeralVolumeSizeKey = "topolvm.cybozu.com/size"
