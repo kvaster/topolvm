@@ -8,8 +8,8 @@ import (
 
 	"github.com/cybozu-go/well"
 	"github.com/spf13/cobra"
-	"github.com/topolvm/topolvm"
-	"github.com/topolvm/topolvm/scheduler"
+	"github.com/kvaster/topols"
+	"github.com/kvaster/topols/scheduler"
 	"sigs.k8s.io/yaml"
 )
 
@@ -18,9 +18,9 @@ var cfgFilePath string
 const defaultDivisor = 1
 const defaultListenAddr = ":8000"
 
-// Config represents configuration parameters for topolvm-scheduler
+// Config represents configuration parameters for topols-scheduler
 type Config struct {
-	// ListenAddr is listen address of topolvm-scheduler.
+	// ListenAddr is listen address of topols-scheduler.
 	ListenAddr string `json:"listen"`
 	// Divisors is a mapping between device-class names and their divisors.
 	Divisors map[string]float64 `json:"divisors"`
@@ -34,16 +34,16 @@ var config = &Config{
 }
 
 var rootCmd = &cobra.Command{
-	Use:     "topolvm-scheduler",
-	Version: topolvm.Version,
-	Short:   "a scheduler-extender for TopoLVM",
-	Long: `A scheduler-extender for TopoLVM.
+	Use:     "topols-scheduler",
+	Version: topols.Version,
+	Short:   "a scheduler-extender for TopoLS",
+	Long: `A scheduler-extender for TopoLS.
 
 The extender implements filter and prioritize verbs.
 
 The filter verb is "predicate" and served at "/predicate" via HTTP.
 It filters out nodes that have less storage capacity than requested.
-The requested capacity is read from "capacity.topolvm.cybozu.com/<device-class>"
+The requested capacity is read from "capacity.topols.kvaster.com/<device-class>"
 resource value.
 
 The prioritize verb is "prioritize" and served at "/prioritize" via HTTP.

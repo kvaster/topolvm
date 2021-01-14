@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/topolvm/topolvm"
+	"github.com/kvaster/topols"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -25,7 +25,7 @@ func PVCMutator(c client.Client, dec *admission.Decoder) http.Handler {
 	return &webhook.Admission{Handler: persistentVolumeClaimMutator{c, dec}}
 }
 
-// +kubebuilder:webhook:webhookVersions=v1beta1,path=/pvc/mutate,mutating=true,failurePolicy=fail,matchPolicy=equivalent,groups="",resources=persistentvolumeclaims,verbs=create,versions=v1,name=pvc-hook.topolvm.cybozu.com
+// +kubebuilder:webhook:webhookVersions=v1beta1,path=/pvc/mutate,mutating=true,failurePolicy=fail,matchPolicy=equivalent,groups="",resources=persistentvolumeclaims,verbs=create,versions=v1,name=pvc-hook.topols.kvaster.com
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
 
 // Handle implements admission.Handler interface.
@@ -38,7 +38,7 @@ func (m persistentVolumeClaimMutator) Handle(ctx context.Context, req admission.
 
 	// StorageClassName can be nil
 	if pvc.Spec.StorageClassName == nil {
-		return admission.Allowed("no request for TopoLVM")
+		return admission.Allowed("no request for TopoLS")
 	}
 
 	var sc storagev1.StorageClass
@@ -47,17 +47,17 @@ func (m persistentVolumeClaimMutator) Handle(ctx context.Context, req admission.
 	case err == nil:
 	case apierrors.IsNotFound(err):
 		// StorageClassName can be simple name linked PV
-		return admission.Allowed("no request for TopoLVM")
+		return admission.Allowed("no request for TopoLS")
 	default:
 		return admission.Errored(http.StatusInternalServerError, err)
 	}
 
-	if sc.Provisioner != topolvm.PluginName {
-		return admission.Allowed("no request for TopoLVM")
+	if sc.Provisioner != topols.PluginName {
+		return admission.Allowed("no request for TopoLS")
 	}
 
 	pvcPatch := pvc.DeepCopy()
-	pvcPatch.Finalizers = append(pvcPatch.Finalizers, topolvm.PVCFinalizer)
+	pvcPatch.Finalizers = append(pvcPatch.Finalizers, topols.PVCFinalizer)
 	marshaled, err := json.Marshal(pvcPatch)
 	if err != nil {
 		return admission.Errored(http.StatusInternalServerError, err)

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/topolvm/topolvm"
+	"github.com/kvaster/topols"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -35,12 +35,12 @@ func (s NodeService) getNodes(ctx context.Context) (*corev1.NodeList, error) {
 }
 
 func (s NodeService) extractCapacityFromAnnotation(node *corev1.Node, deviceClass string) (int64, error) {
-	if deviceClass == topolvm.DefaultDeviceClassName {
-		deviceClass = topolvm.DefaultDeviceClassAnnotationName
+	if deviceClass == topols.DefaultDeviceClassName {
+		deviceClass = topols.DefaultDeviceClassAnnotationName
 	}
-	c, ok := node.Annotations[topolvm.CapacityKeyPrefix+deviceClass]
+	c, ok := node.Annotations[topols.CapacityKeyPrefix+deviceClass]
 	if !ok {
-		return 0, fmt.Errorf("%s is not found", topolvm.CapacityKeyPrefix+deviceClass)
+		return 0, fmt.Errorf("%s is not found", topols.CapacityKeyPrefix+deviceClass)
 	}
 	return strconv.ParseInt(c, 10, 64)
 }
@@ -56,7 +56,7 @@ func (s NodeService) GetCapacityByName(ctx context.Context, name, deviceClass st
 	return s.extractCapacityFromAnnotation(n, deviceClass)
 }
 
-// GetCapacityByTopologyLabel returns VG capacity of specified node by TopoLVM's topology label.
+// GetCapacityByTopologyLabel returns VG capacity of specified node by TopoLS's topology label.
 func (s NodeService) GetCapacityByTopologyLabel(ctx context.Context, topology, dc string) (int64, error) {
 	nl, err := s.getNodes(ctx)
 	if err != nil {
@@ -64,7 +64,7 @@ func (s NodeService) GetCapacityByTopologyLabel(ctx context.Context, topology, d
 	}
 
 	for _, node := range nl.Items {
-		if v, ok := node.Labels[topolvm.TopologyNodeKey]; ok {
+		if v, ok := node.Labels[topols.TopologyNodeKey]; ok {
 			if v != topology {
 				continue
 			}

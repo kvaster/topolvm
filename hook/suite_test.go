@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/kvaster/topols"
 	"net"
 	"path/filepath"
 	"testing"
@@ -11,7 +12,6 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/topolvm/topolvm"
 
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -37,12 +37,12 @@ var testCtx = context.Background()
 var stopCh = make(chan struct{})
 
 const (
-	topolvmProvisionerStorageClassName          = "topolvm-provisioner"
-	topolvmProvisioner2StorageClassName         = "topolvm-provisioner2"
-	topolvmProvisioner3StorageClassName         = "topolvm-provisioner3"
-	topolvmProvisionerImmediateStorageClassName = "topolvm-provisioner-immediate"
-	hostLocalStorageClassName                   = "host-local"
-	missingStorageClassName                     = "missing-storageclass"
+	topolsProvisionerStorageClassName          = "topols-provisioner"
+	topolsProvisioner2StorageClassName         = "topols-provisioner2"
+	topolsProvisioner3StorageClassName         = "topols-provisioner3"
+	topolsProvisionerImmediateStorageClassName = "topols-provisioner-immediate"
+	hostLocalStorageClassName                  = "host-local"
+	missingStorageClassName                    = "missing-storageclass"
 )
 
 var (
@@ -58,12 +58,12 @@ func setupCommonResources() {
 	// StrageClass
 	sc := &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: topolvmProvisionerStorageClassName,
+			Name: topolsProvisionerStorageClassName,
 		},
-		Provisioner:       "topolvm.cybozu.com",
+		Provisioner:       "topols.kvaster.com",
 		VolumeBindingMode: modePtr(storagev1.VolumeBindingWaitForFirstConsumer),
 		Parameters: map[string]string{
-			topolvm.DeviceClassKey: "ssd",
+			topols.DeviceClassKey: "ssd",
 		},
 	}
 	err := k8sClient.Create(testCtx, sc)
@@ -71,12 +71,12 @@ func setupCommonResources() {
 
 	sc = &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: topolvmProvisioner2StorageClassName,
+			Name: topolsProvisioner2StorageClassName,
 		},
-		Provisioner:       "topolvm.cybozu.com",
+		Provisioner:       "topols.kvaster.com",
 		VolumeBindingMode: modePtr(storagev1.VolumeBindingWaitForFirstConsumer),
 		Parameters: map[string]string{
-			topolvm.DeviceClassKey: "hdd1",
+			topols.DeviceClassKey: "hdd1",
 		},
 	}
 	err = k8sClient.Create(testCtx, sc)
@@ -84,12 +84,12 @@ func setupCommonResources() {
 
 	sc = &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: topolvmProvisioner3StorageClassName,
+			Name: topolsProvisioner3StorageClassName,
 		},
-		Provisioner:       "topolvm.cybozu.com",
+		Provisioner:       "topols.kvaster.com",
 		VolumeBindingMode: modePtr(storagev1.VolumeBindingWaitForFirstConsumer),
 		Parameters: map[string]string{
-			topolvm.DeviceClassKey: "hdd2",
+			topols.DeviceClassKey: "hdd2",
 		},
 	}
 	err = k8sClient.Create(testCtx, sc)
@@ -97,12 +97,12 @@ func setupCommonResources() {
 
 	sc = &storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: topolvmProvisionerImmediateStorageClassName,
+			Name: topolsProvisionerImmediateStorageClassName,
 		},
-		Provisioner:       "topolvm.cybozu.com",
+		Provisioner:       "topols.kvaster.com",
 		VolumeBindingMode: modePtr(storagev1.VolumeBindingImmediate),
 		Parameters: map[string]string{
-			topolvm.DeviceClassKey: "ssd",
+			topols.DeviceClassKey: "ssd",
 		},
 	}
 	err = k8sClient.Create(testCtx, sc)
@@ -136,7 +136,7 @@ var _ = BeforeSuite(func() {
 		MutatingWebhooks: []runtime.Object{
 			&admissionregistrationv1beta1.MutatingWebhookConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "topolvm-hook",
+					Name: "topols-hook",
 				},
 				TypeMeta: metav1.TypeMeta{
 					Kind:       "MutatingWebhookConfiguration",
@@ -144,7 +144,7 @@ var _ = BeforeSuite(func() {
 				},
 				Webhooks: []admissionregistrationv1beta1.MutatingWebhook{
 					{
-						Name:          "pod-hook.topolvm.cybozu.com",
+						Name:          "pod-hook.topols.kvaster.com",
 						FailurePolicy: &failPolicy,
 						ClientConfig: admissionregistrationv1beta1.WebhookClientConfig{
 							Service: &admissionregistrationv1beta1.ServiceReference{
@@ -165,7 +165,7 @@ var _ = BeforeSuite(func() {
 						},
 					},
 					{
-						Name:          "pvc-hook.topolvm.cybozu.com",
+						Name:          "pvc-hook.topols.kvaster.com",
 						FailurePolicy: &failPolicy,
 						ClientConfig: admissionregistrationv1beta1.WebhookClientConfig{
 							Service: &admissionregistrationv1beta1.ServiceReference{

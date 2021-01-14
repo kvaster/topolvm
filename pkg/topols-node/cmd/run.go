@@ -4,14 +4,14 @@ import (
 	"context"
 	"errors"
 	"github.com/spf13/viper"
-	"github.com/topolvm/topolvm"
-	topolvmv1 "github.com/topolvm/topolvm/api/v1"
-	"github.com/topolvm/topolvm/controllers"
-	"github.com/topolvm/topolvm/csi"
-	"github.com/topolvm/topolvm/driver"
-	"github.com/topolvm/topolvm/driver/k8s"
-	"github.com/topolvm/topolvm/lvm"
-	"github.com/topolvm/topolvm/runners"
+	"github.com/kvaster/topols"
+	topolsv1 "github.com/kvaster/topols/api/v1"
+	"github.com/kvaster/topols/controllers"
+	"github.com/kvaster/topols/csi"
+	"github.com/kvaster/topols/driver"
+	"github.com/kvaster/topols/driver/k8s"
+	"github.com/kvaster/topols/lvm"
+	"github.com/kvaster/topols/runners"
 	"google.golang.org/grpc"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,7 +31,7 @@ var (
 )
 
 func init() {
-	if err := topolvmv1.AddToScheme(scheme); err != nil {
+	if err := topolsv1.AddToScheme(scheme); err != nil {
 		panic(err)
 	}
 	if err := clientgoscheme.AddToScheme(scheme); err != nil {
@@ -122,6 +122,6 @@ func checkFunc(r client.Reader) func() error {
 		defer cancel()
 
 		var drv storagev1beta1.CSIDriver
-		return r.Get(ctx, types.NamespacedName{Name: topolvm.PluginName}, &drv)
+		return r.Get(ctx, types.NamespacedName{Name: topols.PluginName}, &drv)
 	}
 }

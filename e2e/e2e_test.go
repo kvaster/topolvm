@@ -321,7 +321,7 @@ spec:
 					if node.Name == "topolvm-e2e-control-plane" {
 						continue
 					}
-					strCap, ok := node.Annotations[topolvm.CapacityKeyPrefix+"ssd"]
+					strCap, ok := node.Annotations[topols.CapacityKeyPrefix+"ssd"]
 					if !ok {
 						return fmt.Errorf("capacity is not annotated: %s", node.Name)
 					}
@@ -606,7 +606,7 @@ spec:
 				continue
 			}
 
-			strCap, ok := node.Annotations[topolvm.CapacityKeyPrefix+"ssd"]
+			strCap, ok := node.Annotations[topols.CapacityKeyPrefix+"ssd"]
 			Expect(ok).To(Equal(true), "capacity is not annotated: "+node.Name)
 			capacity, err := strconv.Atoi(strCap)
 			Expect(err).ShouldNot(HaveOccurred())

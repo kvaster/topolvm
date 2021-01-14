@@ -1,4 +1,4 @@
-module github.com/topolvm/topolvm
+module github.com/kvaster/topols
 
 go 1.15
 

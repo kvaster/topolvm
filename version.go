@@ -1,6 +1,6 @@
-package topolvm
+package topols
 
 var (
-	// Version is the topolvm version, this value will be injected on building.
+	// Version is the topols version, this value will be injected on building.
 	Version = "devel"
 )

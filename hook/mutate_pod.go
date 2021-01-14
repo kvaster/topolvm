@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/topolvm/topolvm"
+	"github.com/kvaster/topols"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
@@ -20,11 +20,11 @@ import (
 
 var pmLogger = ctrl.Log.WithName("pod-mutator")
 
-// +kubebuilder:webhook:webhookVersions=v1beta1,path=/pod/mutate,mutating=true,failurePolicy=fail,matchPolicy=equivalent,groups="",resources=pods,verbs=create,versions=v1,name=pod-hook.topolvm.cybozu.com
+// +kubebuilder:webhook:webhookVersions=v1beta1,path=/pod/mutate,mutating=true,failurePolicy=fail,matchPolicy=equivalent,groups="",resources=pods,verbs=create,versions=v1,name=pod-hook.topols.kvaster.com
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
 
-// podMutator mutates pods using PVC for TopoLVM.
+// podMutator mutates pods using PVC for TopoLS.
 type podMutator struct {
 	client  client.Client
 	decoder *admission.Decoder
@@ -80,11 +80,11 @@ func (m podMutator) Handle(ctx context.Context, req admission.Request) admission
 		if pvcCapacities == nil {
 			pvcCapacities = make(map[string]int64)
 		}
-		pvcCapacities[topolvm.DefaultDeviceClassAnnotationName] += ephemeralCapacity
+		pvcCapacities[topols.DefaultDeviceClassAnnotationName] += ephemeralCapacity
 	}
 
 	if len(pvcCapacities) == 0 {
-		return admission.Allowed("no request for TopoLVM")
+		return admission.Allowed("no request for TopoLS")
 	}
 
 	ctnr := &pod.Spec.Containers[0]
@@ -92,17 +92,17 @@ func (m podMutator) Handle(ctx context.Context, req admission.Request) admission
 	if ctnr.Resources.Requests == nil {
 		ctnr.Resources.Requests = corev1.ResourceList{}
 	}
-	ctnr.Resources.Requests[topolvm.CapacityResource] = *quantity
+	ctnr.Resources.Requests[topols.CapacityResource] = *quantity
 	if ctnr.Resources.Limits == nil {
 		ctnr.Resources.Limits = corev1.ResourceList{}
 	}
-	ctnr.Resources.Limits[topolvm.CapacityResource] = *quantity
+	ctnr.Resources.Limits[topols.CapacityResource] = *quantity
 
 	if pod.Annotations == nil {
 		pod.Annotations = make(map[string]string)
 	}
 	for dc, capacity := range pvcCapacities {
-		pod.Annotations[topolvm.CapacityKeyPrefix+dc] = strconv.FormatInt(capacity, 10)
+		pod.Annotations[topols.CapacityKeyPrefix+dc] = strconv.FormatInt(capacity, 10)
 	}
 
 	marshaledPod, err := json.Marshal(pod)
@@ -121,7 +121,7 @@ func (m podMutator) targetStorageClasses(ctx context.Context) (map[string]storag
 
 	targets := make(map[string]storagev1.StorageClass)
 	for _, sc := range scl.Items {
-		if sc.Provisioner != topolvm.PluginName {
+		if sc.Provisioner != topols.PluginName {
 			continue
 		}
 		targets[sc.Name] = sc
@@ -155,7 +155,7 @@ func (m podMutator) requestedPVCCapacity(ctx context.Context, pod *corev1.Pod, t
 				return nil, err
 			}
 			// Pods should be created even if their PVCs do not exist yet.
-			// TopoLVM does not care about such pods after they are created, though.
+			// TopoLS does not care about such pods after they are created, though.
 			continue
 		}
 
@@ -170,19 +170,19 @@ func (m podMutator) requestedPVCCapacity(ctx context.Context, pod *corev1.Pod, t
 			continue
 		}
 
-		// If the Pod has a bound PVC of TopoLVM, the pod will be scheduled
+		// If the Pod has a bound PVC of TopoLS, the pod will be scheduled
 		// to the node of the existing PV.
 		if pvc.Status.Phase != corev1.ClaimPending {
 			return nil, nil
 		}
 
-		var requested int64 = topolvm.DefaultSize
+		var requested int64 = topols.DefaultSize
 		if req, ok := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; ok {
 			requested = req.Value()
 		}
-		dc, ok := sc.Parameters[topolvm.DeviceClassKey]
+		dc, ok := sc.Parameters[topols.DeviceClassKey]
 		if !ok {
-			dc = topolvm.DefaultDeviceClassAnnotationName
+			dc = topols.DefaultDeviceClassAnnotationName
 		}
 
 		capacities[dc] += requested
@@ -197,18 +197,18 @@ func (m podMutator) requestedEphemeralCapacity(pod *corev1.Pod) (int64, error) {
 			// We only want to look at CSI volumes
 			continue
 		}
-		if vol.CSI.Driver == topolvm.PluginName {
-			if volSizeStr, ok := vol.CSI.VolumeAttributes[topolvm.EphemeralVolumeSizeKey]; ok {
+		if vol.CSI.Driver == topols.PluginName {
+			if volSizeStr, ok := vol.CSI.VolumeAttributes[topols.EphemeralVolumeSizeKey]; ok {
 				volSize, err := strconv.ParseInt(volSizeStr, 10, 64)
 				if err != nil {
 					pmLogger.Error(err, "Invalid volume size",
-						topolvm.EphemeralVolumeSizeKey, volSizeStr,
+						topols.EphemeralVolumeSizeKey, volSizeStr,
 					)
 					return 0, err
 				}
 				total += volSize
 			} else {
-				total += topolvm.DefaultSize
+				total += topols.DefaultSize
 			}
 		}
 	}

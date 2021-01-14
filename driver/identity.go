@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/wrappers"
-	"github.com/topolvm/topolvm"
-	"github.com/topolvm/topolvm/csi"
+	"github.com/kvaster/topols"
+	"github.com/kvaster/topols/csi"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -32,8 +32,8 @@ type identityService struct {
 func (s identityService) GetPluginInfo(ctx context.Context, req *csi.GetPluginInfoRequest) (*csi.GetPluginInfoResponse, error) {
 	idLogger.Info("GetPluginInfo", "req", req.String())
 	return &csi.GetPluginInfoResponse{
-		Name:          topolvm.PluginName,
-		VendorVersion: topolvm.Version,
+		Name:          topols.PluginName,
+		VendorVersion: topols.Version,
 	}, nil
 }
 

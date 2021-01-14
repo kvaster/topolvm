@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/topolvm/topolvm"
+	"github.com/kvaster/topols"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -45,7 +45,7 @@ func (r *PersistentVolumeClaimReconciler) Reconcile(req ctrl.Request) (ctrl.Resu
 
 	needFinalize := false
 	for _, fin := range pvc.Finalizers {
-		if fin == topolvm.PVCFinalizer {
+		if fin == topols.PVCFinalizer {
 			needFinalize = true
 			break
 		}

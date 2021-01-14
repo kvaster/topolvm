@@ -4,8 +4,8 @@ import (
 	"context"
 
 	"github.com/go-logr/logr"
-	"github.com/topolvm/topolvm"
-	topolvmv1 "github.com/topolvm/topolvm/api/v1"
+	"github.com/kvaster/topols"
+	topolsv1 "github.com/kvaster/topols/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -48,7 +48,7 @@ func (r *NodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	needFinalize := false
 	for _, fin := range node.Finalizers {
-		if fin == topolvm.NodeFinalizer {
+		if fin == topols.NodeFinalizer {
 			needFinalize = true
 			break
 		}
@@ -64,7 +64,7 @@ func (r *NodeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	node2 := node.DeepCopy()
 	finalizers := node2.Finalizers[:0]
 	for _, fin := range node.Finalizers {
-		if fin == topolvm.NodeFinalizer {
+		if fin == topols.NodeFinalizer {
 			continue
 		}
 		finalizers = append(finalizers, fin)
@@ -88,7 +88,7 @@ func (r *NodeReconciler) targetStorageClasses(ctx context.Context) (map[string]b
 
 	targets := make(map[string]bool)
 	for _, sc := range scl.Items {
-		if sc.Provisioner != topolvm.PluginName {
+		if sc.Provisioner != topols.PluginName {
 			continue
 		}
 		targets[sc.Name] = true
@@ -126,7 +126,7 @@ func (r *NodeReconciler) doFinalize(ctx context.Context, log logr.Logger, node *
 		log.Info("deleted PVC", "name", pvc.Name, "namespace", pvc.Namespace)
 	}
 
-	lvList := new(topolvmv1.LogicalVolumeList)
+	lvList := new(topolsv1.LogicalVolumeList)
 	err = r.List(ctx, lvList, client.MatchingFields{keyLogicalVolumeNode: node.Name})
 	if err != nil {
 		log.Error(err, "failed to get LogicalVolumes")
@@ -143,10 +143,10 @@ func (r *NodeReconciler) doFinalize(ctx context.Context, log logr.Logger, node *
 	return ctrl.Result{}, nil
 }
 
-func (r *NodeReconciler) cleanupLogicalVolume(ctx context.Context, log logr.Logger, lv *topolvmv1.LogicalVolume) error {
+func (r *NodeReconciler) cleanupLogicalVolume(ctx context.Context, log logr.Logger, lv *topolsv1.LogicalVolume) error {
 	finExists := false
 	for _, fin := range lv.Finalizers {
-		if fin == topolvm.LogicalVolumeFinalizer {
+		if fin == topols.LogicalVolumeFinalizer {
 			finExists = true
 			break
 		}
@@ -156,7 +156,7 @@ func (r *NodeReconciler) cleanupLogicalVolume(ctx context.Context, log logr.Logg
 		lv2 := lv.DeepCopy()
 		var finalizers []string
 		for _, fin := range lv2.Finalizers {
-			if fin == topolvm.LogicalVolumeFinalizer {
+			if fin == topols.LogicalVolumeFinalizer {
 				continue
 			}
 			finalizers = append(finalizers, fin)
@@ -190,8 +190,8 @@ func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		return err
 	}
 
-	err = mgr.GetFieldIndexer().IndexField(ctx, &topolvmv1.LogicalVolume{}, keyLogicalVolumeNode, func(o runtime.Object) []string {
-		return []string{o.(*topolvmv1.LogicalVolume).Spec.NodeName}
+	err = mgr.GetFieldIndexer().IndexField(ctx, &topolsv1.LogicalVolume{}, keyLogicalVolumeNode, func(o runtime.Object) []string {
+		return []string{o.(*topolsv1.LogicalVolume).Spec.NodeName}
 	})
 	if err != nil {
 		return err

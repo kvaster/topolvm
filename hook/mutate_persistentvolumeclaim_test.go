@@ -3,7 +3,7 @@ package hook
 import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/topolvm/topolvm"
+	"github.com/kvaster/topols"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
@@ -47,9 +47,9 @@ func getPVC(pvcName string) (*corev1.PersistentVolumeClaim, error) {
 	return pvc, err
 }
 
-func hasTopoLVMFinalizer(pvc *corev1.PersistentVolumeClaim) bool {
+func hasTopoLSFinalizer(pvc *corev1.PersistentVolumeClaim) bool {
 	for _, fin := range pvc.Finalizers {
-		if fin == topolvm.PVCFinalizer {
+		if fin == topols.PVCFinalizer {
 			return true
 		}
 	}
@@ -57,48 +57,48 @@ func hasTopoLVMFinalizer(pvc *corev1.PersistentVolumeClaim) bool {
 }
 
 var _ = Describe("pvc mutation webhook", func() {
-	It("should not have topolvm.cybozu.com/pvc finalizer when not specified storageclass", func() {
+	It("should not have topols.kvaster.com/pvc finalizer when not specified storageclass", func() {
 		pvcName := "empty-storageclass-pvc"
 		createPVC("", pvcName)
 		pvc, err := getPVC(pvcName)
 		Expect(err).ShouldNot(HaveOccurred())
-		hasFinalizer := hasTopoLVMFinalizer(pvc)
+		hasFinalizer := hasTopoLSFinalizer(pvc)
 		Expect(hasFinalizer).Should(Equal(false), "finalizer should not be set for storageclass=%s", hostLocalStorageClassName)
 	})
 
-	It("should not have topolvm.cybozu.com/pvc finalizer when the specified StorageClass does not exist", func() {
+	It("should not have topols.kvaster.com/pvc finalizer when the specified StorageClass does not exist", func() {
 		pvcName := "unexists-storageclass-pvc"
 		createPVC(missingStorageClassName, pvcName)
 		pvc, err := getPVC(pvcName)
 		Expect(err).ShouldNot(HaveOccurred())
-		hasFinalizer := hasTopoLVMFinalizer(pvc)
+		hasFinalizer := hasTopoLSFinalizer(pvc)
 		Expect(hasFinalizer).Should(Equal(false), "finalizer should not be set for storageclass=%s", missingStorageClassName)
 	})
 
-	It("should not have topolvm.cybozu.com/pvc finalizer with storageclass host-local", func() {
+	It("should not have topols.kvaster.com/pvc finalizer with storageclass host-local", func() {
 		pvcName := "host-local-pvc"
 		createPVC(hostLocalStorageClassName, pvcName)
 		pvc, err := getPVC(pvcName)
 		Expect(err).ShouldNot(HaveOccurred())
-		hasFinalizer := hasTopoLVMFinalizer(pvc)
+		hasFinalizer := hasTopoLSFinalizer(pvc)
 		Expect(hasFinalizer).Should(Equal(false), "finalizer should not be set for storageclass=%s", hostLocalStorageClassName)
 	})
 
-	It("should have topolvm.cybozu.com/pvc finalizer with storageclass topolvm-provisioner", func() {
-		pvcName := "topolvm-provisioner-pvc"
-		createPVC(topolvmProvisionerStorageClassName, pvcName)
+	It("should have topols.kvaster.com/pvc finalizer with storageclass topols-provisioner", func() {
+		pvcName := "topols-provisioner-pvc"
+		createPVC(topolsProvisionerStorageClassName, pvcName)
 		pvc, err := getPVC(pvcName)
 		Expect(err).ShouldNot(HaveOccurred())
-		hasFinalizer := hasTopoLVMFinalizer(pvc)
-		Expect(hasFinalizer).Should(Equal(true), "finalizer should be set for storageclass=%s", topolvmProvisionerStorageClassName)
+		hasFinalizer := hasTopoLSFinalizer(pvc)
+		Expect(hasFinalizer).Should(Equal(true), "finalizer should be set for storageclass=%s", topolsProvisionerStorageClassName)
 	})
 
-	It("should have topolvm.cybozu.com/pvc finalizer with storageclass topolvm-provisioner-immediate", func() {
-		pvcName := "topolvm-provisioner-immediate-pvc"
-		createPVC(topolvmProvisionerImmediateStorageClassName, pvcName)
+	It("should have topols.kvaster.com/pvc finalizer with storageclass topols-provisioner-immediate", func() {
+		pvcName := "topols-provisioner-immediate-pvc"
+		createPVC(topolsProvisionerImmediateStorageClassName, pvcName)
 		pvc, err := getPVC(pvcName)
 		Expect(err).ShouldNot(HaveOccurred())
-		hasFinalizer := hasTopoLVMFinalizer(pvc)
-		Expect(hasFinalizer).Should(Equal(true), "finalizer should be set for storageclass=%s", topolvmProvisionerImmediateStorageClassName)
+		hasFinalizer := hasTopoLSFinalizer(pvc)
+		Expect(hasFinalizer).Should(Equal(true), "finalizer should be set for storageclass=%s", topolsProvisionerImmediateStorageClassName)
 	})
 })

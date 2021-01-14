@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/topolvm/topolvm"
+	"github.com/kvaster/topols"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,9 +17,9 @@ func testNode(name string, cap1Gb, cap2Gb, cap3Gb int64) corev1.Node {
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 			Annotations: map[string]string{
-				topolvm.CapacityKeyPrefix + "ssd":  fmt.Sprintf("%d", cap1Gb<<30),
-				topolvm.CapacityKeyPrefix + "hdd1": fmt.Sprintf("%d", cap2Gb<<30),
-				topolvm.CapacityKeyPrefix + "hdd2": fmt.Sprintf("%d", cap3Gb<<30),
+				topols.CapacityKeyPrefix + "ssd":  fmt.Sprintf("%d", cap1Gb<<30),
+				topols.CapacityKeyPrefix + "hdd1": fmt.Sprintf("%d", cap2Gb<<30),
+				topols.CapacityKeyPrefix + "hdd2": fmt.Sprintf("%d", cap3Gb<<30),
 			},
 		},
 	}
@@ -45,7 +45,7 @@ func TestFilterNodes(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{
 							Name: "10.1.1.4",
 							Annotations: map[string]string{
-								topolvm.CapacityKeyPrefix + "ssd": "foo",
+								topols.CapacityKeyPrefix + "ssd": "foo",
 							},
 						},
 					},
@@ -139,7 +139,7 @@ func TestExtractRequestedSize(t *testing.T) {
 			input: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						topolvm.CapacityKeyPrefix + "ssd": strconv.Itoa(5 << 30),
+						topols.CapacityKeyPrefix + "ssd": strconv.Itoa(5 << 30),
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -147,20 +147,20 @@ func TestExtractRequestedSize(t *testing.T) {
 						{
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
-									topolvm.CapacityResource: *resource.NewQuantity(1, resource.BinarySI),
+									topols.CapacityResource: *resource.NewQuantity(1, resource.BinarySI),
 								},
 								Limits: corev1.ResourceList{
-									topolvm.CapacityResource: *resource.NewQuantity(1, resource.BinarySI),
+									topols.CapacityResource: *resource.NewQuantity(1, resource.BinarySI),
 								},
 							},
 						},
 						{
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
-									topolvm.CapacityResource: *resource.NewQuantity(1, resource.BinarySI),
+									topols.CapacityResource: *resource.NewQuantity(1, resource.BinarySI),
 								},
 								Limits: corev1.ResourceList{
-									topolvm.CapacityResource: *resource.NewQuantity(1, resource.BinarySI),
+									topols.CapacityResource: *resource.NewQuantity(1, resource.BinarySI),
 								},
 							},
 						},
@@ -175,7 +175,7 @@ func TestExtractRequestedSize(t *testing.T) {
 			input: &corev1.Pod{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						topolvm.CapacityKeyPrefix + "ssd": strconv.Itoa(3 << 30),
+						topols.CapacityKeyPrefix + "ssd": strconv.Itoa(3 << 30),
 					},
 				},
 				Spec: corev1.PodSpec{
@@ -183,7 +183,7 @@ func TestExtractRequestedSize(t *testing.T) {
 						{
 							Resources: corev1.ResourceRequirements{
 								Requests: corev1.ResourceList{
-									topolvm.CapacityResource: *resource.NewQuantity(1, resource.BinarySI),
+									topols.CapacityResource: *resource.NewQuantity(1, resource.BinarySI),
 								},
 							},
 						},

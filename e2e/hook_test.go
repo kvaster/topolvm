@@ -18,7 +18,7 @@ const nsHookTest = "hook-test"
 
 func hasTopoLVMFinalizer(pvc *corev1.PersistentVolumeClaim) bool {
 	for _, fin := range pvc.Finalizers {
-		if fin == topolvm.PVCFinalizer {
+		if fin == topols.PVCFinalizer {
 			return true
 		}
 	}
@@ -129,16 +129,16 @@ spec:
 			}
 
 			resources := pod.Spec.Containers[0].Resources
-			_, ok := resources.Limits[topolvm.CapacityResource]
+			_, ok := resources.Limits[topols.CapacityResource]
 			if !ok {
 				return errors.New("resources.Limits is not mutated")
 			}
-			_, ok = resources.Requests[topolvm.CapacityResource]
+			_, ok = resources.Requests[topols.CapacityResource]
 			if !ok {
 				return errors.New("resources.Requests is not mutated")
 			}
 
-			capacity, ok := pod.Annotations[topolvm.CapacityKeyPrefix+"ssd"]
+			capacity, ok := pod.Annotations[topols.CapacityKeyPrefix+"ssd"]
 			if !ok {
 				return errors.New("not annotated")
 			}
@@ -267,16 +267,16 @@ spec:
 			}
 
 			resources := pod.Spec.Containers[0].Resources
-			_, ok := resources.Limits[topolvm.CapacityResource]
+			_, ok := resources.Limits[topols.CapacityResource]
 			if !ok {
 				return errors.New("resources.Limits is not mutated")
 			}
-			_, ok = resources.Requests[topolvm.CapacityResource]
+			_, ok = resources.Requests[topols.CapacityResource]
 			if !ok {
 				return errors.New("resources.Requests is not mutated")
 			}
 
-			capacity, ok := pod.Annotations[topolvm.CapacityKeyPrefix+topolvm.DefaultDeviceClassAnnotationName]
+			capacity, ok := pod.Annotations[topols.CapacityKeyPrefix+topols.DefaultDeviceClassAnnotationName]
 			if !ok {
 				return errors.New("not annotated")
 			}

@@ -1,7 +1,7 @@
 version: "2"
-domain: cybozu.com
-repo: github.com/cybozu-go/topolvm
+domain: kvaster.com
+repo: github.com/kvaster/topols
 resources:
-- group: topolvm
+- group: topols
   version: v1
   kind: LogicalVolume

@@ -1,6 +1,6 @@
 // +build tools
 
-package topolvm
+package topols
 
 import (
 	// These are to declare dependency on tools

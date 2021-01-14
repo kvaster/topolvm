@@ -6,14 +6,14 @@ import (
 	"net"
 	"time"
 
-	"github.com/topolvm/topolvm"
-	topolvmv1 "github.com/topolvm/topolvm/api/v1"
-	"github.com/topolvm/topolvm/controllers"
-	"github.com/topolvm/topolvm/csi"
-	"github.com/topolvm/topolvm/driver"
-	"github.com/topolvm/topolvm/driver/k8s"
-	"github.com/topolvm/topolvm/hook"
-	"github.com/topolvm/topolvm/runners"
+	"github.com/kvaster/topols"
+	topolsv1 "github.com/kvaster/topols/api/v1"
+	"github.com/kvaster/topols/controllers"
+	"github.com/kvaster/topols/csi"
+	"github.com/kvaster/topols/driver"
+	"github.com/kvaster/topols/driver/k8s"
+	"github.com/kvaster/topols/hook"
+	"github.com/kvaster/topols/runners"
 	"google.golang.org/grpc"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -33,7 +33,7 @@ var (
 )
 
 func init() {
-	if err := topolvmv1.AddToScheme(scheme); err != nil {
+	if err := topolsv1.AddToScheme(scheme); err != nil {
 		panic(err)
 	}
 	if err := clientgoscheme.AddToScheme(scheme); err != nil {
@@ -113,7 +113,7 @@ func subMain() error {
 	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.PersistentVolumeClaim{}); err != nil {
 		return err
 	}
-	if _, err := mgr.GetCache().GetInformer(ctx, &topolvmv1.LogicalVolume{}); err != nil {
+	if _, err := mgr.GetCache().GetInformer(ctx, &topolsv1.LogicalVolume{}); err != nil {
 		return err
 	}
 
@@ -123,7 +123,7 @@ func subMain() error {
 		defer cancel()
 
 		var drv storagev1beta1.CSIDriver
-		return mgr.GetAPIReader().Get(ctx, types.NamespacedName{Name: topolvm.PluginName}, &drv)
+		return mgr.GetAPIReader().Get(ctx, types.NamespacedName{Name: topols.PluginName}, &drv)
 	}
 	checker := runners.NewChecker(check, 1*time.Minute)
 	if err := mgr.Add(checker); err != nil {

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/topolvm/topolvm"
+	"github.com/kvaster/topols"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -46,7 +46,7 @@ func filterNodes(nodes corev1.NodeList, requested map[string]int64) ExtenderFilt
 
 func filterNode(node corev1.Node, requested map[string]int64) string {
 	for dc, required := range requested {
-		val, ok := node.Annotations[topolvm.CapacityKeyPrefix+dc]
+		val, ok := node.Annotations[topols.CapacityKeyPrefix+dc]
 		if !ok {
 			return "no capacity annotation"
 		}
@@ -64,10 +64,10 @@ func filterNode(node corev1.Node, requested map[string]int64) string {
 func extractRequestedSize(pod *corev1.Pod) map[string]int64 {
 	result := make(map[string]int64)
 	for k, v := range pod.Annotations {
-		if !strings.HasPrefix(k, topolvm.CapacityKeyPrefix) {
+		if !strings.HasPrefix(k, topols.CapacityKeyPrefix) {
 			continue
 		}
-		dc := k[len(topolvm.CapacityKeyPrefix):]
+		dc := k[len(topols.CapacityKeyPrefix):]
 		capacity, err := strconv.ParseInt(v, 10, 64)
 		if err != nil {
 			continue

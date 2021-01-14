@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/topolvm/topolvm"
-	topolvmv1 "github.com/topolvm/topolvm/api/v1"
+	"github.com/kvaster/topols"
+	topolsv1 "github.com/kvaster/topols/api/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -37,15 +37,15 @@ var (
 	logger = ctrl.Log.WithName("LogicalVolume")
 )
 
-// +kubebuilder:rbac:groups=topolvm.cybozu.com,resources=logicalvolumes,verbs=get;list;watch;create;delete
+// +kubebuilder:rbac:groups=topols.kvaster.com,resources=logicalvolumes,verbs=get;list;watch;create;delete
 // +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch
 
 // NewLogicalVolumeService returns LogicalVolumeService.
 func NewLogicalVolumeService(mgr manager.Manager) (*LogicalVolumeService, error) {
 	ctx := context.Background()
-	err := mgr.GetFieldIndexer().IndexField(ctx, &topolvmv1.LogicalVolume{}, indexFieldVolumeID,
+	err := mgr.GetFieldIndexer().IndexField(ctx, &topolsv1.LogicalVolume{}, indexFieldVolumeID,
 		func(o runtime.Object) []string {
-			return []string{o.(*topolvmv1.LogicalVolume).Status.VolumeID}
+			return []string{o.(*topolsv1.LogicalVolume).Status.VolumeID}
 		})
 	if err != nil {
 		return nil, err
@@ -60,15 +60,15 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	lv := &topolvmv1.LogicalVolume{
+	lv := &topolsv1.LogicalVolume{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       "LogicalVolume",
-			APIVersion: "topolvm.cybozu.com/v1",
+			APIVersion: "topols.kvaster.com/v1",
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Spec: topolvmv1.LogicalVolumeSpec{
+		Spec: topolsv1.LogicalVolumeSpec{
 			Name:        name,
 			NodeName:    node,
 			DeviceClass: dc,
@@ -76,7 +76,7 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name 
 		},
 	}
 
-	existingLV := new(topolvmv1.LogicalVolume)
+	existingLV := new(topolsv1.LogicalVolume)
 	err := s.Get(ctx, client.ObjectKey{Name: name}, existingLV)
 	if err != nil {
 		if !apierrors.IsNotFound(err) {
@@ -106,7 +106,7 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name 
 		case <-time.After(1 * time.Second):
 		}
 
-		var newLV topolvmv1.LogicalVolume
+		var newLV topolsv1.LogicalVolume
 		err := s.Get(ctx, client.ObjectKey{Name: name}, &newLV)
 		if err != nil {
 			logger.Error(err, "failed to get LogicalVolume", "name", name)
@@ -159,7 +159,7 @@ func (s *LogicalVolumeService) ExpandVolume(ctx context.Context, volumeID string
 		return err
 	}
 
-	// wait until topolvm-node expands the target volume
+	// wait until topols-node expands the target volume
 	for {
 		logger.Info("waiting for update of 'status.currentSize'", "name", lv.Name)
 		select {
@@ -168,7 +168,7 @@ func (s *LogicalVolumeService) ExpandVolume(ctx context.Context, volumeID string
 		case <-time.After(1 * time.Second):
 		}
 
-		var changedLV topolvmv1.LogicalVolume
+		var changedLV topolsv1.LogicalVolume
 		err := s.Get(ctx, client.ObjectKey{Name: lv.Name}, &changedLV)
 		if err != nil {
 			logger.Error(err, "failed to get LogicalVolume", "name", lv.Name)
@@ -191,8 +191,8 @@ func (s *LogicalVolumeService) ExpandVolume(ctx context.Context, volumeID string
 }
 
 // GetVolume returns LogicalVolume by volume ID.
-func (s *LogicalVolumeService) GetVolume(ctx context.Context, volumeID string) (*topolvmv1.LogicalVolume, error) {
-	lvList := new(topolvmv1.LogicalVolumeList)
+func (s *LogicalVolumeService) GetVolume(ctx context.Context, volumeID string) (*topolsv1.LogicalVolume, error) {
+	lvList := new(topolsv1.LogicalVolumeList)
 	err := s.List(ctx, lvList, client.MatchingFields{indexFieldVolumeID: volumeID})
 	if err != nil {
 		return nil, err
@@ -224,7 +224,7 @@ func (s *LogicalVolumeService) UpdateSpecSize(ctx context.Context, volumeID stri
 		if lv.Annotations == nil {
 			lv.Annotations = make(map[string]string)
 		}
-		lv.Annotations[topolvm.ResizeRequestedAtKey] = time.Now().UTC().String()
+		lv.Annotations[topols.ResizeRequestedAtKey] = time.Now().UTC().String()
 
 		if err := s.Update(ctx, lv); err != nil {
 			if apierrors.IsConflict(err) {

@@ -7,7 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/topolvm/topolvm"
+	"github.com/kvaster/topols"
 	"k8s.io/klog"
 )
 
@@ -19,10 +19,10 @@ var config struct {
 }
 
 var rootCmd = &cobra.Command{
-	Use:     "topolvm-node",
-	Version: topolvm.Version,
-	Short:   "TopoLVM CSI node",
-	Long: `topolvm-node provides CSI node service.
+	Use:     "topols-node",
+	Version: topols.Version,
+	Short:   "TopoLS CSI node",
+	Long: `topols-node provides CSI node service.
 It also works as a custom Kubernetes controller.
 
 The node name where this program runs must be given by either
@@ -45,7 +45,7 @@ func Execute() {
 
 func init() {
 	fs := rootCmd.Flags()
-	fs.StringVar(&config.csiSocket, "csi-socket", topolvm.DefaultCSISocket, "UNIX domain socket filename for CSI")
+	fs.StringVar(&config.csiSocket, "csi-socket", topols.DefaultCSISocket, "UNIX domain socket filename for CSI")
 	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "Listen address for metrics")
 	fs.String("nodename", "", "The resource name of the running node")
 	fs.BoolVar(&config.development, "development", false, "Use development logger config")

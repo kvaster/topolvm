@@ -84,7 +84,7 @@ func testNode() {
 				vgName,
 			)
 			Expect(err).ShouldNot(HaveOccurred(), "stdout=%s, stderr=%s", targetBytes, stderr)
-			val, ok := node.Annotations[topolvm.CapacityKeyPrefix+"ssd"]
+			val, ok := node.Annotations[topols.CapacityKeyPrefix+"ssd"]
 			Expect(ok).To(Equal(true), "capacity is not annotated: "+node.Name)
 			Expect(val).To(Equal(strings.TrimSpace(string(targetBytes))), "unexpected capacity: "+node.Name)
 		}
@@ -119,11 +119,11 @@ func testNode() {
 			err = json.Unmarshal(stdout, &node)
 			Expect(err).ShouldNot(HaveOccurred())
 			for k, v := range node.Annotations {
-				if !strings.HasPrefix(k, topolvm.CapacityKeyPrefix) {
+				if !strings.HasPrefix(k, topols.CapacityKeyPrefix) {
 					continue
 				}
-				dc := k[len(topolvm.CapacityKeyPrefix):]
-				if dc == topolvm.DefaultDeviceClassAnnotationName {
+				dc := k[len(topols.CapacityKeyPrefix):]
+				if dc == topols.DefaultDeviceClassAnnotationName {
 					continue
 				}
 				expected, err := strconv.ParseFloat(v, 64)

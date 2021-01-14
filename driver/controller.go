@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/topolvm/topolvm"
-	"github.com/topolvm/topolvm/csi"
-	"github.com/topolvm/topolvm/driver/k8s"
+	"github.com/kvaster/topols"
+	"github.com/kvaster/topols/csi"
+	"github.com/kvaster/topols/driver/k8s"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -31,7 +31,7 @@ type controllerService struct {
 func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolumeRequest) (*csi.CreateVolumeResponse, error) {
 	capabilities := req.GetVolumeCapabilities()
 	source := req.GetVolumeContentSource()
-	deviceClass := req.GetParameters()[topolvm.DeviceClassKey]
+	deviceClass := req.GetParameters()[topols.DeviceClassKey]
 
 	ctrlLogger.Info("CreateVolume called",
 		"name", req.GetName(),
@@ -101,21 +101,21 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 		node = nodeName
 	} else {
 		for _, topo := range requirements.Preferred {
-			if v, ok := topo.GetSegments()[topolvm.TopologyNodeKey]; ok {
+			if v, ok := topo.GetSegments()[topols.TopologyNodeKey]; ok {
 				node = v
 				break
 			}
 		}
 		if node == "" {
 			for _, topo := range requirements.Requisite {
-				if v, ok := topo.GetSegments()[topolvm.TopologyNodeKey]; ok {
+				if v, ok := topo.GetSegments()[topols.TopologyNodeKey]; ok {
 					node = v
 					break
 				}
 			}
 		}
 		if node == "" {
-			return nil, status.Errorf(codes.InvalidArgument, "cannot find key '%s' in accessibility_requirements", topolvm.TopologyNodeKey)
+			return nil, status.Errorf(codes.InvalidArgument, "cannot find key '%s' in accessibility_requirements", topols.TopologyNodeKey)
 		}
 	}
 
@@ -141,7 +141,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			VolumeId:      volumeID,
 			AccessibleTopology: []*csi.Topology{
 				{
-					Segments: map[string]string{topolvm.TopologyNodeKey: node},
+					Segments: map[string]string{topols.TopologyNodeKey: node},
 				},
 			},
 		},
@@ -212,7 +212,7 @@ func (s controllerService) ValidateVolumeCapabilities(ctx context.Context, req *
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 
-	// Since TopoLVM does not provide means to pre-provision volumes,
+	// Since TopoLS does not provide means to pre-provision volumes,
 	// any existing volume is valid.
 	return &csi.ValidateVolumeCapabilitiesResponse{
 		Confirmed: &csi.ValidateVolumeCapabilitiesResponse_Confirmed{
@@ -231,10 +231,10 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 		"parameters", req.GetParameters(),
 		"accessible_topology", topology)
 	if capabilities != nil {
-		ctrlLogger.Info("capability argument is not nil, but TopoLVM ignores it")
+		ctrlLogger.Info("capability argument is not nil, but TopoLS ignores it")
 	}
 
-	deviceClass := req.GetParameters()[topolvm.DeviceClassKey]
+	deviceClass := req.GetParameters()[topols.DeviceClassKey]
 
 	var capacity int64
 	switch topology {
@@ -245,9 +245,9 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 			return nil, status.Error(codes.Internal, err.Error())
 		}
 	default:
-		v, ok := topology.Segments[topolvm.TopologyNodeKey]
+		v, ok := topology.Segments[topols.TopologyNodeKey]
 		if !ok {
-			return nil, status.Errorf(codes.Internal, "%s is not found in req.AccessibleTopology", topolvm.TopologyNodeKey)
+			return nil, status.Errorf(codes.Internal, "%s is not found in req.AccessibleTopology", topols.TopologyNodeKey)
 		}
 		var err error
 		capacity, err = s.nodeService.GetCapacityByTopologyLabel(ctx, v, deviceClass)
