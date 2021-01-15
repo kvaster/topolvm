@@ -1,7 +1,7 @@
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
-  name: topolvm-node
+  name: topols-node
 spec:
   privileged: true
   allowPrivilegeEscalation: true
@@ -13,7 +13,7 @@ spec:
   allowedHostPaths:
   - pathPrefix: "/var/lib/kubelet"
     readOnly: false
-  - pathPrefix: "/run/topolvm"
+  - pathPrefix: "/run/topols"
     readOnly: false
   - pathPrefix: "/mnt/pool"
     readOnly: false
@@ -31,7 +31,7 @@ spec:
 apiVersion: policy/v1beta1
 kind: PodSecurityPolicy
 metadata:
-  name: topolvm-scheduler
+  name: topols-scheduler
 spec:
   privileged: false
   allowPrivilegeEscalation: false

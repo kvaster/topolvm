@@ -1,22 +1,22 @@
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: topolvm-hook
+  name: topols-hook
   annotations:
-    cert-manager.io/inject-ca-from: topolvm-system/mutatingwebhook
+    cert-manager.io/inject-ca-from: topols-system/mutatingwebhook
   labels:
-    app.kubernetes.io/name: topolvm-hook
+    app.kubernetes.io/name: topols-hook
 webhooks:
-  - name: pod-hook.topolvm.cybozu.com
+  - name: pod-hook.topols.kvaster.com
     namespaceSelector:
       matchExpressions:
-      - key: topolvm.cybozu.com/webhook
+      - key: topols.kvaster.com/webhook
         operator: NotIn
         values: ["ignore"]
     failurePolicy: Fail
     clientConfig:
       service:
-        namespace: topolvm-system
+        namespace: topols-system
         name: controller
         path: /pod/mutate
     rules:
@@ -24,16 +24,16 @@ webhooks:
         apiGroups: [""]
         apiVersions: ["v1"]
         resources: ["pods"]
-  - name: pvc-hook.topolvm.cybozu.com
+  - name: pvc-hook.topols.kvaster.com
     namespaceSelector:
       matchExpressions:
-      - key: topolvm.cybozu.com/webhook
+      - key: topols.kvaster.com/webhook
         operator: NotIn
         values: ["ignore"]
     failurePolicy: Fail
     clientConfig:
       service:
-        namespace: topolvm-system
+        namespace: topols-system
         name: controller
         path: /pvc/mutate
     rules:

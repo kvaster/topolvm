@@ -2,7 +2,7 @@
 apiVersion: storage.k8s.io/v1beta1
 kind: CSIDriver
 metadata:
-  name: topolvm.cybozu.com
+  name: topols.kvaster.com
 spec:
   attachRequired: true
   podInfoOnMount: true
@@ -14,13 +14,13 @@ spec:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  namespace: topolvm-system
+  namespace: topols-system
   name: controller
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: topolvm-system:controller
+  name: topols-system:controller
 rules:
   - apiGroups: [""]
     resources: ["nodes"]
@@ -34,27 +34,27 @@ rules:
   - apiGroups: ["storage.k8s.io"]
     resources: ["storageclasses","csidrivers"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: ["topolvm.cybozu.com"]
+  - apiGroups: ["topols.kvaster.com"]
     resources: ["logicalvolumes", "logicalvolumes/status"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: topolvm-system:controller
+  name: topols-system:controller
 subjects:
   - kind: ServiceAccount
-    namespace: topolvm-system
+    namespace: topols-system
     name: controller
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: topolvm-system:controller
+  name: topols-system:controller
 ---
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: topolvm-system
+  namespace: topols-system
   name: leader-election
 rules:
   - apiGroups: [""]
@@ -70,11 +70,11 @@ rules:
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: topolvm-system
+  namespace: topols-system
   name: leader-election
 subjects:
   - kind: ServiceAccount
-    namespace: topolvm-system
+    namespace: topols-system
     name: controller
 roleRef:
   kind: Role
@@ -117,7 +117,7 @@ metadata:
   name: csi-provisioner-role
 subjects:
   - kind: ServiceAccount
-    namespace: topolvm-system
+    namespace: topols-system
     name: controller
 roleRef:
   kind: ClusterRole
@@ -127,7 +127,7 @@ roleRef:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: topolvm-system
+  namespace: topols-system
   name: external-provisioner-cfg
 rules:
 - apiGroups: ["coordination.k8s.io"]
@@ -137,11 +137,11 @@ rules:
 kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: topolvm-system
+  namespace: topols-system
   name: csi-provisioner-role-cfg
 subjects:
   - kind: ServiceAccount
-    namespace: topolvm-system
+    namespace: topols-system
     name: controller
 roleRef:
   kind: Role
@@ -172,7 +172,7 @@ metadata:
   name: csi-attacher-role
 subjects:
   - kind: ServiceAccount
-    namespace: topolvm-system
+    namespace: topols-system
     name: controller
 roleRef:
   kind: ClusterRole
@@ -182,7 +182,7 @@ roleRef:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: topolvm-system
+  namespace: topols-system
   name: external-attacher-cfg
 rules:
   - apiGroups: ["coordination.k8s.io"]
@@ -193,11 +193,11 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: csi-attacher-role-cfg
-  namespace: topolvm-system
+  namespace: topols-system
 subjects:
   - kind: ServiceAccount
     name: controller
-    namespace: topolvm-system
+    namespace: topols-system
 roleRef:
   kind: Role
   name: external-attacher-cfg
@@ -227,7 +227,7 @@ metadata:
   name: csi-resizer-role
 subjects:
   - kind: ServiceAccount
-    namespace: topolvm-system
+    namespace: topols-system
     name: controller
 roleRef:
   kind: ClusterRole
@@ -237,7 +237,7 @@ roleRef:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  namespace: topolvm-system
+  namespace: topols-system
   name: external-resizer-cfg
 rules:
   - apiGroups: ["coordination.k8s.io"]
@@ -248,11 +248,11 @@ kind: RoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
   name: csi-resizer-role-cfg
-  namespace: topolvm-system
+  namespace: topols-system
 subjects:
   - kind: ServiceAccount
     name: controller
-    namespace: topolvm-system
+    namespace: topols-system
 roleRef:
   kind: Role
   name: external-resizer-cfg
@@ -263,7 +263,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: controller
-  namespace: topolvm-system
+  namespace: topols-system
 spec:
   selector:
     app.kubernetes.io/name: controller
@@ -276,7 +276,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: controller
-  namespace: topolvm-system
+  namespace: topols-system
 spec:
   replicas: 2
   selector:
@@ -302,10 +302,10 @@ spec:
         runAsGroup: 10000
       serviceAccountName: controller
       containers:
-        - name: topolvm-controller
-          image: quay.io/topolvm/topolvm:latest
+        - name: topols-controller
+          image: quay.io/topols/topols:latest
           command:
-            - /topolvm-controller
+            - /topols-controller
             - --cert-dir=/certs
           ports:
             - containerPort: 9808
@@ -326,53 +326,53 @@ spec:
             periodSeconds: 60
           volumeMounts:
             - name: socket-dir
-              mountPath: /run/topolvm
+              mountPath: /run/topols
             - name: certs
               mountPath: /certs
 
         - name: csi-provisioner
-          image: quay.io/topolvm/topolvm:latest
+          image: quay.io/topols/topols:latest
           command:
             - /csi-provisioner
-            - "--csi-address=/run/topolvm/csi-topolvm.sock"
+            - "--csi-address=/run/topols/csi-topols.sock"
             - "--feature-gates=Topology=true"
             - --enable-leader-election
-            - --leader-election-namespace=topolvm-system
+            - --leader-election-namespace=topols-system
             - --leader-election-type=leases
           volumeMounts:
             - name: socket-dir
-              mountPath: /run/topolvm
+              mountPath: /run/topols
 
         - name: csi-attacher
-          image: quay.io/topolvm/topolvm:latest
+          image: quay.io/topols/topols:latest
           command:
             - /csi-attacher
-            - "--csi-address=/run/topolvm/csi-topolvm.sock"
+            - "--csi-address=/run/topols/csi-topols.sock"
             - --leader-election
-            - --leader-election-namespace=topolvm-system
+            - --leader-election-namespace=topols-system
           volumeMounts:
             - name: socket-dir
-              mountPath: /run/topolvm
+              mountPath: /run/topols
 
         - name: csi-resizer
-          image: quay.io/topolvm/topolvm:latest
+          image: quay.io/topols/topols:latest
           command:
             - /csi-resizer
-            - "--csi-address=/run/topolvm/csi-topolvm.sock"
+            - "--csi-address=/run/topols/csi-topols.sock"
             - --leader-election
-            - --leader-election-namespace=topolvm-system
+            - --leader-election-namespace=topols-system
           volumeMounts:
             - name: socket-dir
-              mountPath: /run/topolvm
+              mountPath: /run/topols
 
         - name: liveness-probe
-          image: quay.io/topolvm/topolvm:latest
+          image: quay.io/topols/topols:latest
           command:
             - /livenessprobe
-            - "--csi-address=/run/topolvm/csi-topolvm.sock"
+            - "--csi-address=/run/topols/csi-topols.sock"
           volumeMounts:
             - name: socket-dir
-              mountPath: /run/topolvm
+              mountPath: /run/topols
 
       volumes:
         - name: socket-dir

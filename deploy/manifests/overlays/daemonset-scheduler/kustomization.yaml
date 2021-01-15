@@ -4,10 +4,11 @@ resources:
   - ../../base
   - scheduler.yaml
 images:
-  - name: quay.io/topolvm/topolvm
-    newTag: 0.6.0
+  - name: quay.io/topols/topols
+    newName: registry.kvaster.com/topols
+    newTag: latest
 configMapGenerator:
   - name: scheduler-options
-    namespace: topolvm-system
+    namespace: topols-system
     files:
       - scheduler-options.yaml

@@ -1,34 +1,34 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  namespace: topolvm-system
-  name: topolvm-scheduler
+  namespace: topols-system
+  name: topols-scheduler
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app.kubernetes.io/name: topolvm-scheduler
+      app.kubernetes.io/name: topols-scheduler
   template:
     metadata:
       labels:
-        app.kubernetes.io/name: topolvm-scheduler
+        app.kubernetes.io/name: topols-scheduler
     spec:
       securityContext:
         runAsUser:  10000
         runAsGroup: 10000
-      serviceAccountName: topolvm-scheduler
+      serviceAccountName: topols-scheduler
       containers:
-        - name: topolvm-scheduler
-          image: quay.io/topolvm/topolvm:latest
+        - name: topols-scheduler
+          image: quay.io/topols/topols:latest
           command:
-            - /topolvm-scheduler
-            - --config=/etc/topolvm/scheduler-options.yaml
+            - /topols-scheduler
+            - --config=/etc/topols/scheduler-options.yaml
           livenessProbe:
             httpGet:
               port: 9251
               path: /status
           volumeMounts:
-            - mountPath: /etc/topolvm
+            - mountPath: /etc/topols
               name: scheduler-options
       volumes:
         - name: scheduler-options
@@ -38,12 +38,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  namespace: topolvm-system
-  name: topolvm-scheduler
+  namespace: topols-system
+  name: topols-scheduler
 spec:
   type: LoadBalancer
   selector:
-    app.kubernetes.io/name: topolvm-scheduler
+    app.kubernetes.io/name: topols-scheduler
   ports:
     - protocol: TCP
       port: 9251

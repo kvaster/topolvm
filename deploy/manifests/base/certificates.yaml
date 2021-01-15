@@ -4,7 +4,7 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: webhook-selfsign
-  namespace: topolvm-system
+  namespace: topols-system
 spec:
   selfSigned: {}
 ---
@@ -13,13 +13,13 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: webhook-ca
-  namespace: topolvm-system
+  namespace: topols-system
 spec:
   secretName: webhook-ca
   duration: 87600h0m0s # 10y
   issuerRef:
     name: webhook-selfsign
-  commonName: "ca.webhook.topolvm"
+  commonName: "ca.webhook.topols"
   isCA: true
   usages:
   - digital signature
@@ -31,7 +31,7 @@ apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
   name: webhook-ca
-  namespace: topolvm-system
+  namespace: topols-system
 spec:
   ca:
     secretName: webhook-ca
@@ -41,7 +41,7 @@ apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
   name: mutatingwebhook
-  namespace: topolvm-system
+  namespace: topols-system
 spec:
   secretName: mutatingwebhook
   duration: 8760h0m0s # 1y
@@ -49,8 +49,8 @@ spec:
     name: webhook-ca
   dnsNames:
   - controller
-  - controller.topolvm-system
-  - controller.topolvm-system.svc
+  - controller.topols-system
+  - controller.topols-system.svc
   usages:
   - digital signature
   - key encipherment

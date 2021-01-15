@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: topolvm-system
+  name: topols-system
   labels:
-    app.kubernetes.io/name: topolvm-system
-    topolvm.cybozu.com/webhook: ignore
+    app.kubernetes.io/name: topols-system
+    topols.kvaster.com/webhook: ignore

@@ -4,7 +4,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   creationTimestamp: null
-  name: topolvm-controller
+  name: topols-controller
 rules:
 - apiGroups:
   - ""
@@ -44,7 +44,7 @@ rules:
   - list
   - watch
 - apiGroups:
-  - topolvm.cybozu.com
+  - topols.kvaster.com
   resources:
   - logicalvolumes
   verbs:
@@ -56,7 +56,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - topolvm.cybozu.com
+  - topols.kvaster.com
   resources:
   - logicalvolumes/status
   verbs:

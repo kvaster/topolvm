@@ -1,18 +1,18 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  namespace: topolvm-system
+  namespace: topols-system
   name: node
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: topolvm-system:node
+  name: topols-system:node
 rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list", "watch", "update", "patch"]
-  - apiGroups: ["topolvm.cybozu.com"]
+  - apiGroups: ["topols.kvaster.com"]
     resources: ["logicalvolumes", "logicalvolumes/status"]
     verbs: ["get", "list", "watch", "create", "update", "delete", "patch"]
   - apiGroups: ["storage.k8s.io"]
@@ -21,26 +21,26 @@ rules:
   - apiGroups: ["policy"]
     resources: ["podsecuritypolicies"]
     verbs: ["use"]
-    resourceNames: ["topolvm-node"]
+    resourceNames: ["topols-node"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: topolvm-system:node
+  name: topols-system:node
 subjects:
   - kind: ServiceAccount
     name: node
-    namespace: topolvm-system
+    namespace: topols-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: topolvm-system:node
+  name: topols-system:node
 
 ---
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
-  namespace: topolvm-system
+  namespace: topols-system
   name: node
 spec:
   selector:
@@ -55,14 +55,14 @@ spec:
     spec:
       serviceAccountName: node
       containers:
-        - name: topolvm-node
-          image: quay.io/topolvm/topolvm:latest
+        - name: topols-node
+          image: quay.io/topols/topols:latest
           securityContext:
             privileged: true
             capabilities:
               add: ["SYS_ADMIN"]
           command:
-            - /topolvm-node
+            - /topols-node
           ports:
             - containerPort: 9808
               name: healthz
@@ -82,7 +82,7 @@ spec:
                   fieldPath: spec.nodeName
           volumeMounts:
             - name: node-plugin-dir
-              mountPath: /run/topolvm
+              mountPath: /run/topols
             - name: mount-pool
               mountPath: /mnt/pool
             - name: pod-volumes-dir
@@ -93,29 +93,29 @@ spec:
               mountPropagation: "Bidirectional"
 
         - name: csi-registrar
-          image: quay.io/topolvm/topolvm:latest
+          image: quay.io/topols/topols:latest
           command:
             - /csi-node-driver-registrar
-            - "--csi-address=/run/topolvm/csi-topolvm.sock"
-            - "--kubelet-registration-path=/var/lib/kubelet/plugins/topolvm.cybozu.com/node/csi-topolvm.sock"
+            - "--csi-address=/run/topols/csi-topols.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/topols.kvaster.com/node/csi-topols.sock"
           lifecycle:
             preStop:
               exec:
-                command: ["/bin/sh", "-c", "rm -rf /registration/topolvm.cybozu.com /registration/topolvm.cybozu.com-reg.sock"]
+                command: ["/bin/sh", "-c", "rm -rf /registration/topols.kvaster.com /registration/topols.kvaster.com-reg.sock"]
           volumeMounts:
             - name: node-plugin-dir
-              mountPath: /run/topolvm
+              mountPath: /run/topols
             - name: registration-dir
               mountPath: /registration
 
         - name: liveness-probe
-          image: quay.io/topolvm/topolvm:latest
+          image: quay.io/topols/topols:latest
           command:
             - /livenessprobe
-            - "--csi-address=/run/topolvm/csi-topolvm.sock"
+            - "--csi-address=/run/topols/csi-topols.sock"
           volumeMounts:
             - name: node-plugin-dir
-              mountPath: /run/topolvm
+              mountPath: /run/topols
 
       volumes:
         - name: registration-dir
@@ -124,7 +124,7 @@ spec:
             type: Directory
         - name: node-plugin-dir
           hostPath:
-            path: /var/lib/kubelet/plugins/topolvm.cybozu.com/node
+            path: /var/lib/kubelet/plugins/topols.kvaster.com/node
             type: DirectoryOrCreate
         - name: csi-plugin-dir
           hostPath:
