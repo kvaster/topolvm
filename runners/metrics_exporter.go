@@ -2,7 +2,7 @@ package runners
 
 import (
 	"context"
-	"github.com/kvaster/topols/lvm"
+	"github.com/kvaster/topols/lsm"
 	"strconv"
 	"time"
 
@@ -24,14 +24,14 @@ type metricsExporter struct {
 	client.Client
 	nodeName       string
 	availableBytes *prometheus.GaugeVec
-	lvmc           lvm.Client
+	lvmc           lsm.Client
 }
 
 var _ manager.LeaderElectionRunnable = &metricsExporter{}
 
 // NewMetricsExporter creates controller-runtime's manager.Runnable to run
 // a metrics exporter for a node.
-func NewMetricsExporter(mgr manager.Manager, lvmc lvm.Client, nodeName string) manager.Runnable {
+func NewMetricsExporter(mgr manager.Manager, lvmc lsm.Client, nodeName string) manager.Runnable {
 	availableBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   metricsNamespace,
 		Subsystem:   "volumegroup",
@@ -51,7 +51,7 @@ func NewMetricsExporter(mgr manager.Manager, lvmc lvm.Client, nodeName string) m
 
 // Start implements controller-runtime's manager.Runnable.
 func (m *metricsExporter) Start(ch <-chan struct{}) error {
-	metricsCh := make(chan *lvm.DeviceClassStats)
+	metricsCh := make(chan *lsm.DeviceClassStats)
 	go func() {
 		for {
 			select {
@@ -103,7 +103,7 @@ func (m *metricsExporter) NeedLeaderElection() bool {
 	return false
 }
 
-func (m *metricsExporter) updateNode(ctx context.Context, ch chan<- *lvm.DeviceClassStats) error {
+func (m *metricsExporter) updateNode(ctx context.Context, ch chan<- *lsm.DeviceClassStats) error {
 	stats, err := m.lvmc.NodeStats()
 
 	if err != nil {

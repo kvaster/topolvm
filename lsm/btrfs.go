@@ -1,4 +1,4 @@
-package lvm
+package lsm
 
 import (
 	"context"
@@ -17,7 +17,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
-var btrfsLogger = ctrl.Log.WithName("lvm").WithName("btrfs")
+var btrfsLogger = ctrl.Log.WithName("lsm").WithName("btrfs")
 
 var limitRegexp = regexp.MustCompile("\\s*Limit referenced:\\s*(\\d+)\\s*")
 var usageRegexp = regexp.MustCompile("\\s*Usage referenced:\\s*(\\d+)\\s*")

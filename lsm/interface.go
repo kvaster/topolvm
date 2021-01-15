@@ -1,4 +1,4 @@
-package lvm
+package lsm
 
 import "sigs.k8s.io/controller-runtime/pkg/manager"
 

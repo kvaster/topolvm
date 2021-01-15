@@ -10,7 +10,7 @@ import (
 	"github.com/kvaster/topols/csi"
 	"github.com/kvaster/topols/driver"
 	"github.com/kvaster/topols/driver/k8s"
-	"github.com/kvaster/topols/lvm"
+	"github.com/kvaster/topols/lsm"
 	"github.com/kvaster/topols/runners"
 	"google.golang.org/grpc"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
@@ -59,7 +59,7 @@ func subMain() error {
 		return err
 	}
 
-	lvmc, err := lvm.New("/mnt/pool")
+	lvmc, err := lsm.New("/mnt/pool")
 	if err != nil {
 		setupLog.Error(err, "unable to create lvm client")
 		return err

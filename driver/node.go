@@ -9,7 +9,7 @@ import (
 	"github.com/kvaster/topols"
 	"github.com/kvaster/topols/csi"
 	"github.com/kvaster/topols/driver/k8s"
-	"github.com/kvaster/topols/lvm"
+	"github.com/kvaster/topols/lsm"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -24,7 +24,7 @@ const (
 var nodeLogger = ctrl.Log.WithName("driver").WithName("node")
 
 // NewNodeService returns a new NodeServer.
-func NewNodeService(nodeName string, client lvm.Client, service *k8s.LogicalVolumeService) csi.NodeServer {
+func NewNodeService(nodeName string, client lsm.Client, service *k8s.LogicalVolumeService) csi.NodeServer {
 	return &nodeService{
 		nodeName:     nodeName,
 		k8sLVService: service,
@@ -38,7 +38,7 @@ type nodeService struct {
 	nodeName     string
 	k8sLVService *k8s.LogicalVolumeService
 	mu           sync.Mutex
-	client           lvm.Client
+	client       lsm.Client
 }
 
 func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -72,7 +72,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	var lv *lvm.LogicalVolume
+	var lv *lsm.LogicalVolume
 	var err error
 	if isInlineEphemeralVolumeReq {
 		lv, err = s.getLvFromContext(ctx, topols.DefaultDeviceClassName, volumeID)
@@ -130,7 +130,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func (s *nodeService) nodePublishFilesystemVolume(req *csi.NodePublishVolumeRequest, lv *lvm.LogicalVolume) (*csi.NodePublishVolumeResponse, error) {
+func (s *nodeService) nodePublishFilesystemVolume(req *csi.NodePublishVolumeRequest, lv *lsm.LogicalVolume) (*csi.NodePublishVolumeResponse, error) {
 	// Check request
 	mountOption := req.GetVolumeCapability().GetMount()
 	accessMode := req.GetVolumeCapability().GetAccessMode().GetMode()
@@ -161,7 +161,7 @@ func (s *nodeService) nodePublishFilesystemVolume(req *csi.NodePublishVolumeRequ
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func (s *nodeService) findVolumeByID(volumes []*lvm.LogicalVolume, name string) *lvm.LogicalVolume {
+func (s *nodeService) findVolumeByID(volumes []*lsm.LogicalVolume, name string) *lsm.LogicalVolume {
 	for _, v := range volumes {
 		if v.Name == name {
 			return v
@@ -170,7 +170,7 @@ func (s *nodeService) findVolumeByID(volumes []*lvm.LogicalVolume, name string) 
 	return nil
 }
 
-func (s *nodeService) getLvFromContext(ctx context.Context, deviceClass, volumeID string) (*lvm.LogicalVolume, error) {
+func (s *nodeService) getLvFromContext(ctx context.Context, deviceClass, volumeID string) (*lsm.LogicalVolume, error) {
 	listResp, err := s.client.GetLVList(deviceClass)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to list LV: %v", err)
@@ -222,7 +222,7 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
-func (s *nodeService) isEphemeralVolume(volume *lvm.LogicalVolume) bool {
+func (s *nodeService) isEphemeralVolume(volume *lsm.LogicalVolume) bool {
 	for _, tag := range volume.Tags {
 		if tag == "ephemeral" {
 			return true

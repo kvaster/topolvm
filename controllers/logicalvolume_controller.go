@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	"github.com/kvaster/topols/lvm"
+	"github.com/kvaster/topols/lsm"
 
 	"github.com/go-logr/logr"
 	"github.com/kvaster/topols"
@@ -19,16 +19,16 @@ import (
 // LogicalVolumeReconciler reconciles a LogicalVolume object on each node.
 type LogicalVolumeReconciler struct {
 	client.Client
-	log       logr.Logger
-	nodeName  string
-	lvmc      lvm.Client
+	log      logr.Logger
+	nodeName string
+	lvmc     lsm.Client
 }
 
 // +kubebuilder:rbac:groups=topols.kvaster.com,resources=logicalvolumes,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=topols.kvaster.com,resources=logicalvolumes/status,verbs=get;update;patch
 
 // NewLogicalVolumeReconciler returns LogicalVolumeReconciler with creating lvService and vgService.
-func NewLogicalVolumeReconciler(client client.Client, lvmc lvm.Client, log logr.Logger, nodeName string) *LogicalVolumeReconciler {
+func NewLogicalVolumeReconciler(client client.Client, lvmc lsm.Client, log logr.Logger, nodeName string) *LogicalVolumeReconciler {
 	return &LogicalVolumeReconciler{
 		Client:    client,
 		log:       log,
