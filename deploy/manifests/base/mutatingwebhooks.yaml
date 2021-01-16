@@ -1,4 +1,4 @@
-apiVersion: admissionregistration.k8s.io/v1beta1
+apiVersion: admissionregistration.k8s.io/v1
 kind: MutatingWebhookConfiguration
 metadata:
   name: topols-hook
@@ -24,6 +24,8 @@ webhooks:
         apiGroups: [""]
         apiVersions: ["v1"]
         resources: ["pods"]
+    admissionReviewVersions: ["v1", "v1beta1"]
+    sideEffects: None
   - name: pvc-hook.topols.kvaster.com
     namespaceSelector:
       matchExpressions:
@@ -41,3 +43,6 @@ webhooks:
         apiGroups: [""]
         apiVersions: ["v1"]
         resources: ["persistentvolumeclaims"]
+    admissionReviewVersions: ["v1", "v1beta1"]
+    sideEffects: None
+

@@ -6,7 +6,7 @@ resources:
 images:
   - name: quay.io/topols/topols
     newName: registry.kvaster.com/topols
-    newTag: latest
+    newTag: 0.7.0
 configMapGenerator:
   - name: scheduler-options
     namespace: topols-system
