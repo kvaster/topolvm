@@ -13,7 +13,7 @@ import (
 	"github.com/kvaster/topols/runners"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
-	storagev1beta1 "k8s.io/api/storage/v1beta1"
+	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -120,7 +120,7 @@ func checkFunc(r client.Reader) func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		var drv storagev1beta1.CSIDriver
+		var drv storagev1.CSIDriver
 		return r.Get(ctx, types.NamespacedName{Name: topols.PluginName}, &drv)
 	}
 }

@@ -163,7 +163,7 @@ rules:
     resources: ["csinodes"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["storage.k8s.io"]
-    resources: ["volumeattachments"]
+    resources: ["volumeattachments", "volumeattachments/status"]
     verbs: ["get", "list", "watch", "update", "patch"]
 ---
 kind: ClusterRoleBinding
@@ -336,9 +336,8 @@ spec:
             - /csi-provisioner
             - "--csi-address=/run/topols/csi-topols.sock"
             - "--feature-gates=Topology=true"
-            - --enable-leader-election
+            - --leader-election
             - --leader-election-namespace=topols-system
-            - --leader-election-type=leases
           volumeMounts:
             - name: socket-dir
               mountPath: /run/topols

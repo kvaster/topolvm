@@ -19,9 +19,9 @@ import (
 
 var btrfsLogger = ctrl.Log.WithName("lsm").WithName("btrfs")
 
-var limitRegexp = regexp.MustCompile("\\s*Limit referenced:\\s*(\\d+)\\s*")
-var usageRegexp = regexp.MustCompile("\\s*Usage referenced:\\s*(\\d+)\\s*")
-var subvolRegexp = regexp.MustCompile("\\s*Subvolume ID:\\s*(\\d+)\\s*")
+var limitRegexp = regexp.MustCompile(`\s*Limit referenced:\s*(\d+)\s*`)
+var usageRegexp = regexp.MustCompile(`\s*Usage referenced:\s*(\d+)\s*`)
+var subvolRegexp = regexp.MustCompile(`\s*Subvolume ID:\s*(\d+)\s*`)
 
 var errParseInfo = errors.New("error parsing info")
 var errWatch = errors.New("watch error")
@@ -319,15 +319,12 @@ func (c *btrfs) Start(ctx context.Context) error {
 					c.loadConfig()
 				}
 			}
-
-			break
 		case err, ok := <-w.Errors:
 			if !ok {
 				btrfsLogger.Error(nil, "Not OK on watch error")
 				return errWatch
 			}
 			btrfsLogger.Error(err, "Watch error")
-			break
 		}
 	}
 }

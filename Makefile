@@ -1,10 +1,9 @@
 ## Dependency versions
 
-CSI_VERSION=1.1.0
-K8S_VERSION=1.18.9
+CSI_VERSION=1.3.0
+K8S_VERSION=1.20.1
 KUBEBUILDER_VERSION = 2.3.1
-KIND_VERSION=0.9.0
-PROTOC_VERSION=3.12.4
+PROTOC_VERSION=3.14.0
 
 ## DON'T EDIT BELOW THIS LINE
 
@@ -45,9 +44,9 @@ PROTOBUF_GEN = csi/csi.pb.go csi/csi_grpc.pb.go
 .PHONY: test
 test:
 	test -z "$$(gofmt -s -l . | grep -v '^vendor' | tee /dev/stderr)"
-	#staticcheck ./...
-	#test -z "$$(nilerr ./... 2>&1 | tee /dev/stderr)"
-	#ineffassign .
+	~/go/bin/staticcheck ./...
+	test -z "$$(~/go/bin/nilerr ./... 2>&1 | tee /dev/stderr)"
+	~/go/bin/ineffassign .
 	go install ./...
 	go test -race -v ./...
 	go vet ./...
@@ -135,8 +134,7 @@ setup: tools
 	GOBIN=$(BINDIR) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	GOBIN=$(BINDIR) go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
-	curl -o $(BINDIR)/kind -sfL https://kind.sigs.k8s.io/dl/v$(KIND_VERSION)/kind-linux-amd64
 	curl -o $(BINDIR)/kubectl -sfL https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl
 	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.7.0/kustomize_v3.7.0_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
-	chmod a+x $(BINDIR)/kubectl $(BINDIR)/kind
+	chmod a+x $(BINDIR)/kubectl
 	GOBIN=$(BINDIR) go install github.com/onsi/ginkgo/ginkgo

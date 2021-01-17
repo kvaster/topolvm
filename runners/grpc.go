@@ -37,13 +37,7 @@ func (r gRPCServerRunner) Start(ctx context.Context) error {
 
 	go r.srv.Serve(lis)
 
-loop:
-	for {
-		select {
-		case <-ctx.Done():
-			break loop
-		}
-	}
+	<-ctx.Done()
 
 	r.srv.GracefulStop()
 	return nil
