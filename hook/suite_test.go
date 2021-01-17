@@ -130,6 +130,8 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(GinkgoWriter)))
 
+	sideEffect := admissionregistrationv1.SideEffectClassNone
+
 	By("bootstrapping test environment")
 	failPolicy := admissionregistrationv1.Fail
 	webhookInstallOptions := envtest.WebhookInstallOptions{
@@ -163,6 +165,8 @@ var _ = BeforeSuite(func() {
 								},
 							},
 						},
+						SideEffects:             &sideEffect,
+						AdmissionReviewVersions: []string{"v1", "v1beta1"},
 					},
 					{
 						Name:          "pvc-hook.topols.kvaster.com",
@@ -184,6 +188,8 @@ var _ = BeforeSuite(func() {
 								},
 							},
 						},
+						SideEffects:             &sideEffect,
+						AdmissionReviewVersions: []string{"v1", "v1beta1"},
 					},
 				},
 			},
