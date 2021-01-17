@@ -34,7 +34,7 @@ var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
 var testCtx = context.Background()
-var stopCh = make(chan struct{})
+var stopCtx, stopCancel = context.WithCancel(testCtx)
 
 const (
 	topolsProvisionerStorageClassName          = "topols-provisioner"
@@ -133,7 +133,7 @@ var _ = BeforeSuite(func() {
 	By("bootstrapping test environment")
 	failPolicy := admissionregistrationv1beta1.Fail
 	webhookInstallOptions := envtest.WebhookInstallOptions{
-		MutatingWebhooks: []runtime.Object{
+		MutatingWebhooks: []client.Object{
 			&admissionregistrationv1beta1.MutatingWebhookConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "topols-hook",
@@ -209,7 +209,7 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient).ToNot(BeNil())
 
 	By("running webhook server")
-	go run(stopCh, cfg, scheme, &testEnv.WebhookInstallOptions)
+	go run(stopCtx, cfg, scheme, &testEnv.WebhookInstallOptions)
 	d := &net.Dialer{Timeout: time.Second}
 	Eventually(func() error {
 		serverURL := fmt.Sprintf("%s:%d", testEnv.WebhookInstallOptions.LocalServingHost, testEnv.WebhookInstallOptions.LocalServingPort)
@@ -231,7 +231,7 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
-	close(stopCh)
+	stopCancel()
 	err := testEnv.Stop()
 	Expect(err).ToNot(HaveOccurred())
 })

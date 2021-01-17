@@ -286,15 +286,8 @@ func (d *deviceClass) removeVolume(name string) {
 	d.Volumes = vs
 }
 
-func (c *btrfs) Start(ch <-chan struct{}) error {
+func (c *btrfs) Start(ctx context.Context) error {
 	btrfsLogger.Info("Starting config watcher")
-
-	ctx, cancel := context.WithCancel(context.Background())
-
-	go func() {
-		<-ch
-		cancel()
-	}()
 
 	w, err := fsnotify.NewWatcher()
 	if err != nil {

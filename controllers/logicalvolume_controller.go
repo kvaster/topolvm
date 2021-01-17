@@ -38,8 +38,7 @@ func NewLogicalVolumeReconciler(client client.Client, lvmc lsm.Client, log logr.
 }
 
 // Reconcile creates/deletes LVM logical volume for a LogicalVolume.
-func (r *LogicalVolumeReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *LogicalVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.log.WithValues("logicalvolume", req.NamespacedName)
 
 	lv := new(topolsv1.LogicalVolume)

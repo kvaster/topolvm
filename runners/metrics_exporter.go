@@ -50,23 +50,17 @@ func NewMetricsExporter(mgr manager.Manager, lvmc lsm.Client, nodeName string) m
 }
 
 // Start implements controller-runtime's manager.Runnable.
-func (m *metricsExporter) Start(ch <-chan struct{}) error {
+func (m *metricsExporter) Start(ctx context.Context) error {
 	metricsCh := make(chan *lsm.DeviceClassStats)
 	go func() {
 		for {
 			select {
-			case <-ch:
+			case <-ctx.Done():
 				return
 			case met := <-metricsCh:
 				m.availableBytes.WithLabelValues(met.DeviceClass).Set(float64(met.TotalBytes - met.UsedBytes))
 			}
 		}
-	}()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	go func() {
-		<-ch
-		cancel()
 	}()
 
 	// make first update as soon as we start
