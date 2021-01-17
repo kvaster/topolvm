@@ -20,12 +20,18 @@ jobs:
           echo "::set-output name=version::${VERSION}"
           echo "::set-output name=prerelease::${PRERELEASE}"
       - uses: actions/checkout@v2
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR }}
       - name: Build and push
         uses: docker/build-push-action@v2
         with:
           push: true
           tags: |
-            kvaster/topols:latest
-            kvaster/topols:${{ steps.check_version.outputs.version }}
+            ghcr.io/kvaster/topols:latest
+            ghcr.io/kvaster/topols:${{ steps.check_version.outputs.version }}
           build-args: |
             TOPOLS_VERSION=${{ steps.check_version.outputs.version }}
