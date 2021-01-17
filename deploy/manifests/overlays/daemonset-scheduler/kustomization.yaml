@@ -4,8 +4,7 @@ resources:
   - ../../base
   - scheduler.yaml
 images:
-  - name: quay.io/topols/topols
-    newName: registry.kvaster.com/topols
+  - name: ghcr.io/kvaster/topols
     newTag: 0.7.0
 configMapGenerator:
   - name: scheduler-options

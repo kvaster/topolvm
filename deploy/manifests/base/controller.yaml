@@ -303,7 +303,7 @@ spec:
       serviceAccountName: controller
       containers:
         - name: topols-controller
-          image: quay.io/topols/topols:latest
+          image: ghcr.io/kvaster/topols:latest
           command:
             - /topols-controller
             - --cert-dir=/certs
@@ -331,7 +331,7 @@ spec:
               mountPath: /certs
 
         - name: csi-provisioner
-          image: quay.io/topols/topols:latest
+          image: ghcr.io/kvaster/topols:latest
           command:
             - /csi-provisioner
             - "--csi-address=/run/topols/csi-topols.sock"
@@ -344,7 +344,7 @@ spec:
               mountPath: /run/topols
 
         - name: csi-attacher
-          image: quay.io/topols/topols:latest
+          image: ghcr.io/kvaster/topols:latest
           command:
             - /csi-attacher
             - "--csi-address=/run/topols/csi-topols.sock"
@@ -355,7 +355,7 @@ spec:
               mountPath: /run/topols
 
         - name: csi-resizer
-          image: quay.io/topols/topols:latest
+          image: ghcr.io/kvaster/topols:latest
           command:
             - /csi-resizer
             - "--csi-address=/run/topols/csi-topols.sock"
@@ -366,7 +366,7 @@ spec:
               mountPath: /run/topols
 
         - name: liveness-probe
-          image: quay.io/topols/topols:latest
+          image: ghcr.io/kvaster/topols:latest
           command:
             - /livenessprobe
             - "--csi-address=/run/topols/csi-topols.sock"

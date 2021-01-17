@@ -19,7 +19,7 @@ spec:
       serviceAccountName: topols-scheduler
       containers:
         - name: topols-scheduler
-          image: quay.io/topols/topols:latest
+          image: ghcr.io/kvaster/topols:latest
           command:
             - /topols-scheduler
             - --config=/etc/topols/scheduler-options.yaml

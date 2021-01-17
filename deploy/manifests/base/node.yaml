@@ -56,7 +56,7 @@ spec:
       serviceAccountName: node
       containers:
         - name: topols-node
-          image: quay.io/topols/topols:latest
+          image: ghcr.io/kvaster/topols:latest
           securityContext:
             privileged: true
             capabilities:
@@ -93,7 +93,7 @@ spec:
               mountPropagation: "Bidirectional"
 
         - name: csi-registrar
-          image: quay.io/topols/topols:latest
+          image: ghcr.io/kvaster/topols:latest
           command:
             - /csi-node-driver-registrar
             - "--csi-address=/run/topols/csi-topols.sock"
@@ -109,7 +109,7 @@ spec:
               mountPath: /registration
 
         - name: liveness-probe
-          image: quay.io/topols/topols:latest
+          image: ghcr.io/kvaster/topols:latest
           command:
             - /livenessprobe
             - "--csi-address=/run/topols/csi-topols.sock"
