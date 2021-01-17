@@ -5,8 +5,7 @@ resources:
   - scheduler.yaml
 images:
   - name: ghcr.io/kvaster/topols
-    newName: registry.kvaster.com/topols
-    newTag: devel
+    newTag: 0.7.1
 configMapGenerator:
   - name: scheduler-options
     namespace: topols-system
