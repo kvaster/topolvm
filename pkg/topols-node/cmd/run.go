@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"errors"
-	"github.com/spf13/viper"
 	"github.com/kvaster/topols"
 	topolsv1 "github.com/kvaster/topols/api/v1"
 	"github.com/kvaster/topols/controllers"
@@ -12,6 +11,7 @@ import (
 	"github.com/kvaster/topols/driver/k8s"
 	"github.com/kvaster/topols/lsm"
 	"github.com/kvaster/topols/runners"
+	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	storagev1beta1 "k8s.io/api/storage/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -21,7 +21,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"time"
-
 	// +kubebuilder:scaffold:imports
 )
 

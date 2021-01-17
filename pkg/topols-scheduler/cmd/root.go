@@ -7,9 +7,9 @@ import (
 	"os"
 
 	"github.com/cybozu-go/well"
-	"github.com/spf13/cobra"
 	"github.com/kvaster/topols"
 	"github.com/kvaster/topols/scheduler"
+	"github.com/spf13/cobra"
 	"sigs.k8s.io/yaml"
 )
 

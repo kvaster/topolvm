@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/kvaster/topols"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -45,7 +45,7 @@ func NewMetricsExporter(mgr manager.Manager, lvmc lsm.Client, nodeName string) m
 		Client:         mgr.GetClient(),
 		nodeName:       nodeName,
 		availableBytes: availableBytes,
-		lvmc:			lvmc,
+		lvmc:           lvmc,
 	}
 }
 
@@ -138,11 +138,11 @@ func (m *metricsExporter) updateNode(ctx context.Context, ch chan<- *lsm.DeviceC
 	}
 
 	if stats.Default != nil {
-		node2.Annotations[topols.CapacityKeyPrefix+topols.DefaultDeviceClassAnnotationName] = strconv.FormatUint(stats.Default.TotalBytes - stats.Default.UsedBytes, 10)
+		node2.Annotations[topols.CapacityKeyPrefix+topols.DefaultDeviceClassAnnotationName] = strconv.FormatUint(stats.Default.TotalBytes-stats.Default.UsedBytes, 10)
 	}
 
 	for _, s := range stats.DeviceClasses {
-		node2.Annotations[topols.CapacityKeyPrefix+s.DeviceClass] = strconv.FormatUint(s.TotalBytes - s.UsedBytes, 10)
+		node2.Annotations[topols.CapacityKeyPrefix+s.DeviceClass] = strconv.FormatUint(s.TotalBytes-s.UsedBytes, 10)
 	}
 	if err := m.Patch(ctx, node2, client.MergeFrom(&node)); err != nil {
 		return err

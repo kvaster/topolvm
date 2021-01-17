@@ -32,9 +32,9 @@ var errNoVolume = errors.New("no such volume")
 const configFile = "devices.yml"
 
 type deviceClassConfig struct {
-	Name string `json:"name"`
-	Default bool `json:"default"`
-	Size string `json:"size"`
+	Name    string `json:"name"`
+	Default bool   `json:"default"`
+	Size    string `json:"size"`
 }
 
 type config struct {
@@ -42,9 +42,9 @@ type config struct {
 }
 
 type deviceClass struct {
-	Name string
+	Name    string
 	Default bool
-	Size uint64
+	Size    uint64
 	Volumes []*LogicalVolume
 }
 
@@ -128,7 +128,7 @@ func removeSubvol(path string) error {
 		btrfsLogger.Info("Error parsing subvolume info", "Err", err.Error(), "Path", path)
 		return nil
 	}
-	_, err = runCmd("/sbin/btrfs", "qgroup", "destroy", "0/" + strconv.FormatUint(subvolId, 10), path)
+	_, err = runCmd("/sbin/btrfs", "qgroup", "destroy", "0/"+strconv.FormatUint(subvolId, 10), path)
 	if err != nil {
 		btrfsLogger.Info("Warning: error on qgroup destroy", "Err", err.Error(), "Path", path)
 	}
@@ -321,7 +321,7 @@ func (c *btrfs) Start(ch <-chan struct{}) error {
 
 			btrfsLogger.Info("Watch event", "Name", event.Name, "Op", event.Op)
 
-			if event.Op & (fsnotify.Create | fsnotify.Write | fsnotify.Remove | fsnotify.Rename) != 0 {
+			if event.Op&(fsnotify.Create|fsnotify.Write|fsnotify.Remove|fsnotify.Rename) != 0 {
 				if filepath.Base(event.Name) == configFile {
 					c.loadConfig()
 				}

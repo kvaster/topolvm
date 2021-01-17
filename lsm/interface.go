@@ -11,7 +11,7 @@ type LogicalVolume struct {
 
 type NodeStats struct {
 	DeviceClasses []*DeviceClassStats
-	Default *DeviceClassStats
+	Default       *DeviceClassStats
 }
 
 type VolumeStats struct {

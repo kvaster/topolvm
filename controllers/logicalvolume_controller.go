@@ -30,10 +30,10 @@ type LogicalVolumeReconciler struct {
 // NewLogicalVolumeReconciler returns LogicalVolumeReconciler with creating lvService and vgService.
 func NewLogicalVolumeReconciler(client client.Client, lvmc lsm.Client, log logr.Logger, nodeName string) *LogicalVolumeReconciler {
 	return &LogicalVolumeReconciler{
-		Client:    client,
-		log:       log,
-		nodeName:  nodeName,
-		lvmc:      lvmc,
+		Client:   client,
+		log:      log,
+		nodeName: nodeName,
+		lvmc:     lvmc,
 	}
 }
 

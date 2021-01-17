@@ -3,9 +3,9 @@ package hook
 import (
 	"strconv"
 
+	"github.com/kvaster/topols"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/kvaster/topols"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
@@ -193,7 +193,7 @@ var _ = Describe("pod mutation webhook", func() {
 		capacity := pod.Annotations[topols.CapacityKeyPrefix+"ssd"]
 		Expect(request.Value()).Should(BeNumerically("==", 1))
 		Expect(limit.Value()).Should(BeNumerically("==", 1))
-		Expect(capacity).Should(Equal(strconv.Itoa(1 << 30)))
+		Expect(capacity).Should(Equal(strconv.Itoa(100 << 20)))
 	})
 
 	It("should mutate pod w/ TopoLS PVC on multiple volume groups", func() {
@@ -227,7 +227,7 @@ var _ = Describe("pod mutation webhook", func() {
 		capacity := pod.Annotations[topols.CapacityKeyPrefix+"ssd"]
 		Expect(request.Value()).Should(BeNumerically("==", 1))
 		Expect(limit.Value()).Should(BeNumerically("==", 1))
-		Expect(capacity).Should(Equal(strconv.Itoa(1 << 30)))
+		Expect(capacity).Should(Equal(strconv.Itoa(100 << 20)))
 
 		request = pod.Spec.Containers[0].Resources.Requests[topols.CapacityResource]
 		limit = pod.Spec.Containers[0].Resources.Limits[topols.CapacityResource]
@@ -325,7 +325,7 @@ var _ = Describe("pod mutation webhook", func() {
 		capacity := pod.Annotations[topols.CapacityKeyPrefix+"ssd"]
 		Expect(request.Value()).Should(BeNumerically("==", 1))
 		Expect(limit.Value()).Should(BeNumerically("==", 1))
-		Expect(capacity).Should(Equal(strconv.Itoa(1 << 30)))
+		Expect(capacity).Should(Equal(strconv.Itoa(100 * 1024 * 1024)))
 
 		mem := pod.Spec.Containers[0].Resources.Requests["memory"]
 		Expect(mem.Value()).Should(BeNumerically("==", 100))
@@ -387,7 +387,7 @@ var _ = Describe("pod mutation webhook", func() {
 		request := pod.Spec.Containers[0].Resources.Requests[topols.CapacityResource]
 		capacity := pod.Annotations[topols.CapacityKeyPrefix+"ssd"]
 		Expect(request.Value()).Should(BeNumerically("==", 1))
-		Expect(capacity).Should(Equal(strconv.Itoa(3 << 30)))
+		Expect(capacity).Should(Equal(strconv.Itoa((100 << 20) + (2<<30 - 1))))
 	})
 
 	It("should handle PVC w/o storage class", func() {

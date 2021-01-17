@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	ephVolConKey     = "csi.storage.k8s.io/ephemeral"
+	ephVolConKey = "csi.storage.k8s.io/ephemeral"
 )
 
 var nodeLogger = ctrl.Log.WithName("driver").WithName("node")

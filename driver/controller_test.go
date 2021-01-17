@@ -40,7 +40,7 @@ func TestController(t *testing.T) {
 	if err != nil {
 		t.Error("should not be error")
 	}
-	if v != 1 {
+	if v != (1 << 30) {
 		t.Errorf("should be 1: %d", v)
 	}
 
@@ -48,7 +48,7 @@ func TestController(t *testing.T) {
 	if err != nil {
 		t.Error("should not be error")
 	}
-	if v != 2 {
+	if v != (1<<30 + 1) {
 		t.Errorf("should be 2: %d", v)
 	}
 }

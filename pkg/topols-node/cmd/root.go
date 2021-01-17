@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/kvaster/topols"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/kvaster/topols"
 	"k8s.io/klog"
 )
 
