@@ -2,7 +2,8 @@
 
 CSI_VERSION=1.3.0
 K8S_VERSION=1.20.1
-KUBEBUILDER_VERSION = 2.3.1
+KUBEBUILDER_VERSION=2.3.1
+KUSTOMIZE_VERSION=3.9.2
 PROTOC_VERSION=3.14.0
 
 ## DON'T EDIT BELOW THIS LINE
@@ -19,7 +20,7 @@ GO_FILES=$(shell find -name '*.go' -not -name '*_test.go')
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
 GO111MODULE = on
-GOFLAGS = -mod=vendor
+GOFLAGS =
 export GO111MODULE GOFLAGS KUBEBUILDER_ASSETS
 
 BUILD_TARGET=hypertopols
@@ -56,7 +57,7 @@ test:
 .PHONY: manifests
 manifests:
 	$(CONTROLLER_GEN) \
-		crd:trivialVersions=true \
+		crd:crdVersions=v1 \
 		rbac:roleName=topols-controller \
 		webhook \
 		paths="./api/...;./controllers;./hook;./driver/k8s" \
@@ -106,10 +107,10 @@ clean:
 
 .PHONY: tools
 tools:
-	cd /tmp; env GOFLAGS= GO111MODULE=on go get golang.org/x/tools/cmd/goimports
-	cd /tmp; env GOFLAGS= GO111MODULE=on go get honnef.co/go/tools/cmd/staticcheck
-	cd /tmp; env GOFLAGS= GO111MODULE=on go get github.com/gordonklaus/ineffassign
-	cd /tmp; env GOFLAGS= GO111MODULE=on go get github.com/gostaticanalysis/nilerr/cmd/nilerr
+	cd /tmp; env GO111MODULE=on go get golang.org/x/tools/cmd/goimports
+	cd /tmp; env GO111MODULE=on go get honnef.co/go/tools/cmd/staticcheck
+	cd /tmp; env GO111MODULE=on go get github.com/gordonklaus/ineffassign
+	cd /tmp; env GO111MODULE=on go get github.com/gostaticanalysis/nilerr/cmd/nilerr
 
 .PHONY: setup
 setup: tools
@@ -135,6 +136,6 @@ setup: tools
 	GOBIN=$(BINDIR) go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
 	curl -o $(BINDIR)/kubectl -sfL https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl
-	curl -sfL https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv3.7.0/kustomize_v3.7.0_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
+	curl -sSLf https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
 	chmod a+x $(BINDIR)/kubectl
 	GOBIN=$(BINDIR) go install github.com/onsi/ginkgo/ginkgo
