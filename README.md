@@ -1,4 +1,4 @@
-[![GitHub release](https://img.shields.io/github/v/release/kvaster/topols.svg?maxAge=60)][releases]
+[![GitHub release](https://img.shields.io/github/v/release/kvaster/topols)][releases]
 [![Main](https://github.com/kvaster/topols/workflows/Main/badge.svg)](https://github.com/kvaster/topols/actions)
 
 TopoLS
