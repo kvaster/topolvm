@@ -13,4 +13,3 @@ extenders:
   managedResources:
   - name: topols.kvaster.com/capacity
     ignoredByScheduler: true
-

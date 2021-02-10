@@ -45,4 +45,3 @@ webhooks:
         resources: ["persistentvolumeclaims"]
     admissionReviewVersions: ["v1", "v1beta1"]
     sideEffects: None
-

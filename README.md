@@ -1,16 +1,16 @@
 [![GitHub release](https://img.shields.io/github/v/release/kvaster/topols.svg?maxAge=60)][releases]
 [![Main](https://github.com/kvaster/topols/workflows/Main/badge.svg)](https://github.com/kvaster/topols/actions)
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/kvaster/topols?tab=overview)](https://pkg.go.dev/github.com/kvaster/topols?tab=overview)
-[![Go Report Card](https://goreportcard.com/badge/github.com/kvaster/topols)](https://goreportcard.com/badge/github.com/kvaster/topols)
 
 TopoLS
 =======
 
-TopoLS is for of [TopoLVM](https://github.com/topolvm/topolvm) project.
+TopoLS is fork of [TopoLVM](https://github.com/topolvm/topolvm) project.
 TopoLS goal is the same as TopoLVM - provisioning of local storage, but TopoLS uses btrfs qoutas instead of lvm2.
 TopoLS runs in separate namespace and can be installed alongside with TopoLVM.
 
 TopoLS code is ready for testing, but documentation is not yet finished (even touched), so please wait for corrected docs.
+
+Last synced to TopoLVM code on 10 feb 2021 at commit 844c8cccc45d0176778dc65a60cac791e145061c.
 
 TopoLVM
 =======

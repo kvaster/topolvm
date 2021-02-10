@@ -130,10 +130,9 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(GinkgoWriter)))
 
-	sideEffect := admissionregistrationv1.SideEffectClassNone
-
 	By("bootstrapping test environment")
 	failPolicy := admissionregistrationv1.Fail
+	sideEffects := admissionregistrationv1.SideEffectClassNone
 	webhookInstallOptions := envtest.WebhookInstallOptions{
 		MutatingWebhooks: []client.Object{
 			&admissionregistrationv1.MutatingWebhookConfiguration{
@@ -165,7 +164,7 @@ var _ = BeforeSuite(func() {
 								},
 							},
 						},
-						SideEffects:             &sideEffect,
+						SideEffects:             &sideEffects,
 						AdmissionReviewVersions: []string{"v1", "v1beta1"},
 					},
 					{
@@ -188,7 +187,7 @@ var _ = BeforeSuite(func() {
 								},
 							},
 						},
-						SideEffects:             &sideEffect,
+						SideEffects:             &sideEffects,
 						AdmissionReviewVersions: []string{"v1", "v1beta1"},
 					},
 				},

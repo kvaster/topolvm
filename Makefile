@@ -1,7 +1,6 @@
 ## Dependency versions
 
 CSI_VERSION=1.3.0
-K8S_VERSION=1.20.1
 KUBEBUILDER_VERSION=2.3.1
 KUSTOMIZE_VERSION=3.9.2
 PROTOC_VERSION=3.14.0
@@ -135,7 +134,5 @@ setup: tools
 	GOBIN=$(BINDIR) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
 	GOBIN=$(BINDIR) go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
 
-	curl -o $(BINDIR)/kubectl -sfL https://storage.googleapis.com/kubernetes-release/release/v$(K8S_VERSION)/bin/linux/amd64/kubectl
 	curl -sSLf https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
-	chmod a+x $(BINDIR)/kubectl
 	GOBIN=$(BINDIR) go install github.com/onsi/ginkgo/ginkgo
