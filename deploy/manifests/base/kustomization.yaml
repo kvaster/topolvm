@@ -9,3 +9,5 @@ resources:
   - provisioner.yaml
   - psp.yaml
   - scheduler.yaml
+  - certificates.yaml
+
