@@ -267,7 +267,7 @@ And final step is to configure available storage on each node.
    Each entry should be placed on a btrfs filesystem i.e.:
    * directory `/mnt/pool/hdd` - located on root filesystem which is btrfs
    * mount `/mnt/pool/ssd` - located on separate ssd drive with own btrfs filesystem
-1. Create or modify config file `/mnt/pool/devices.yml`.   
+1. Create or modify config file `/mnt/pool/devices.yml`.
 
 Config file is monitored and reapplied on each change.
 
@@ -279,7 +279,7 @@ device-classes:
     default: true
     size: 100Gi
   - name: hdd
--   size: 1Ti
+    size: 1Ti
 ```
 
 [cert-manager]: https://github.com/jetstack/cert-manager
