@@ -200,7 +200,7 @@ You need to copy `deploy/sheduler-config/scheduler-config.yaml` to `kube-schedul
 Usually it is located at `/etc/kubernetes` when you're deploying kubernetes with kubeadm.
 
 ```console
-cp ./deploy/sheduler-config/scheduler-config.yaml
+cp ./deploy/sheduler-config/scheduler-config.yaml /etc/kubernetes/
 ```
 
 ### For new clusters
