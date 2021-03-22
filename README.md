@@ -9,7 +9,7 @@ TopoLS runs in separate namespace and can be installed alongside with TopoLVM.
 
 TopoLS code is ready for testing, but documentation is not yet finished (even touched), so please wait for corrected docs.
 
-Last synced to TopoLVM code on 10 feb 2021 at commit 844c8cccc45d0176778dc65a60cac791e145061c.
+Last synced to TopoLVM code on 22 mar 2021 at commit 977eb046232a74fb4bcc099f8b58ce5f045eb75b.
 
 TopoLS
 ======

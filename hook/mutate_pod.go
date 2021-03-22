@@ -20,7 +20,7 @@ import (
 
 var pmLogger = ctrl.Log.WithName("pod-mutator")
 
-// +kubebuilder:webhook:webhookVersions=v1,path=/pod/mutate,mutating=true,failurePolicy=fail,matchPolicy=equivalent,groups="",resources=pods,verbs=create,versions=v1,sideEffects=None,admissionReviewVersions=v1;v1beta1,name=pod-hook.topols.kvaster.com
+// +kubebuilder:webhook:failurePolicy=fail,matchPolicy=equivalent,groups="",resources=pods,verbs=create,versions=v1,name=pod-hook.topols.kvaster.com,path=/pod/mutate,mutating=true,sideEffects=none,admissionReviewVersions={v1,v1beta1}
 // +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch
 // +kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
 

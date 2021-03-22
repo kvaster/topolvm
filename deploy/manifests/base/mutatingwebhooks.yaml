@@ -8,6 +8,9 @@ metadata:
     app.kubernetes.io/name: topols-hook
 webhooks:
   - name: pod-hook.topols.kvaster.com
+    admissionReviewVersions:
+      - "v1"
+      - "v1beta1"
     namespaceSelector:
       matchExpressions:
       - key: topols.kvaster.com/webhook
@@ -24,9 +27,11 @@ webhooks:
         apiGroups: [""]
         apiVersions: ["v1"]
         resources: ["pods"]
-    admissionReviewVersions: ["v1", "v1beta1"]
     sideEffects: None
   - name: pvc-hook.topols.kvaster.com
+    admissionReviewVersions:
+      - "v1"
+      - "v1beta1"
     namespaceSelector:
       matchExpressions:
       - key: topols.kvaster.com/webhook
@@ -43,5 +48,4 @@ webhooks:
         apiGroups: [""]
         apiVersions: ["v1"]
         resources: ["persistentvolumeclaims"]
-    admissionReviewVersions: ["v1", "v1beta1"]
     sideEffects: None

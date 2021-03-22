@@ -15,10 +15,10 @@ import (
 	"github.com/kvaster/topols/hook"
 	"github.com/kvaster/topols/runners"
 	"google.golang.org/grpc"
-	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
@@ -32,19 +32,15 @@ var (
 )
 
 func init() {
-	if err := topolsv1.AddToScheme(scheme); err != nil {
-		panic(err)
-	}
-	if err := clientgoscheme.AddToScheme(scheme); err != nil {
-		panic(err)
-	}
+	utilruntime.Must(topolsv1.AddToScheme(scheme))
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
 }
 
 // Run builds and starts the manager with leader election.
 func subMain() error {
-	ctrl.SetLogger(zap.New(zap.UseDevMode(config.development)))
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&config.zapOpts)))
 
 	cfg, err := ctrl.GetConfig()
 	if err != nil {
@@ -82,7 +78,6 @@ func subMain() error {
 	// register controllers
 	nodecontroller := &controllers.NodeReconciler{
 		Client: mgr.GetClient(),
-		Log:    ctrl.Log.WithName("controllers").WithName("Node"),
 	}
 	if err := nodecontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Node")
@@ -92,7 +87,6 @@ func subMain() error {
 	pvccontroller := &controllers.PersistentVolumeClaimReconciler{
 		Client:    mgr.GetClient(),
 		APIReader: mgr.GetAPIReader(),
-		Log:       ctrl.Log.WithName("controllers").WithName("PersistentVolumeClaim"),
 	}
 	if err := pvccontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")
@@ -101,22 +95,8 @@ func subMain() error {
 
 	// +kubebuilder:scaffold:builder
 
-	// pre-cache objects
-	ctx := context.Background()
-	if _, err := mgr.GetCache().GetInformer(ctx, &storagev1.StorageClass{}); err != nil {
-		return err
-	}
-	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.Pod{}); err != nil {
-		return err
-	}
-	if _, err := mgr.GetCache().GetInformer(ctx, &corev1.PersistentVolumeClaim{}); err != nil {
-		return err
-	}
-	if _, err := mgr.GetCache().GetInformer(ctx, &topolsv1.LogicalVolume{}); err != nil {
-		return err
-	}
-
 	// Add health checker to manager
+	ctx := context.Background()
 	check := func() error {
 		ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()

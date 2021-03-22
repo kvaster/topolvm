@@ -9,13 +9,13 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var config struct {
 	csiSocket   string
-	lvmdSocket  string
 	metricsAddr string
-	development bool
+	zapOpts     zap.Options
 }
 
 var rootCmd = &cobra.Command{
@@ -48,12 +48,13 @@ func init() {
 	fs.StringVar(&config.csiSocket, "csi-socket", topols.DefaultCSISocket, "UNIX domain socket filename for CSI")
 	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "Listen address for metrics")
 	fs.String("nodename", "", "The resource name of the running node")
-	fs.BoolVar(&config.development, "development", false, "Use development logger config")
 
 	viper.BindEnv("nodename", "NODE_NAME")
 	viper.BindPFlag("nodename", fs.Lookup("nodename"))
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)
+	config.zapOpts.BindFlags(goflags)
+
 	fs.AddGoFlagSet(goflags)
 }

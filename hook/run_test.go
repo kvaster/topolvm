@@ -3,7 +3,6 @@ package hook
 import (
 	"context"
 
-	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -30,11 +29,6 @@ func run(ctx context.Context, cfg *rest.Config, scheme *runtime.Scheme, opts *en
 	}
 
 	// +kubebuilder:scaffold:builder
-
-	// watch StorageClass objects
-	if _, err := mgr.GetCache().GetInformer(context.Background(), &storagev1.StorageClass{}); err != nil {
-		return err
-	}
 
 	dec, _ := admission.NewDecoder(scheme)
 	wh := mgr.GetWebhookServer()

@@ -14,7 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"k8s.io/utils/mount"
+	mountutil "k8s.io/mount-utils"
 )
 
 const (
@@ -29,6 +29,7 @@ func NewNodeService(nodeName string, client lsm.Client, service *k8s.LogicalVolu
 		nodeName:     nodeName,
 		k8sLVService: service,
 		client:       client,
+		mounter:      mountutil.New(""),
 	}
 }
 
@@ -39,6 +40,7 @@ type nodeService struct {
 	k8sLVService *k8s.LogicalVolumeService
 	mu           sync.Mutex
 	client       lsm.Client
+	mounter      mountutil.Interface
 }
 
 func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
@@ -145,8 +147,7 @@ func (s *nodeService) nodePublishFilesystemVolume(req *csi.NodePublishVolumeRequ
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", req.GetTargetPath(), err)
 	}
-	mounter := mount.New("")
-	if err := mounter.Mount(sourcePath, req.GetTargetPath(), "", mountOption.GetMountFlags()); err != nil {
+	if err := s.mounter.Mount(sourcePath, req.GetTargetPath(), "", mountOption.GetMountFlags()); err != nil {
 		return nil, status.Errorf(codes.Internal, "mount failed: volume=%s, error=%v", req.GetVolumeId(), err)
 	}
 	if err := os.Chmod(req.GetTargetPath(), 0777|os.ModeSetgid); err != nil {
@@ -233,8 +234,7 @@ func (s *nodeService) isEphemeralVolume(volume *lsm.LogicalVolume) bool {
 
 func (s *nodeService) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
 	target := req.GetTargetPath()
-	mounter := mount.New("")
-	if err := mounter.Unmount(target); err != nil {
+	if err := s.mounter.Unmount(target); err != nil {
 		return nil, status.Errorf(codes.Internal, "unmount failed for %s: error=%v", target, err)
 	}
 	if err := os.RemoveAll(target); err != nil {

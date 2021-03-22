@@ -1,9 +1,10 @@
 ## Dependency versions
 
+CONTROLLER_TOOLS_VERSION=0.5.0
 CSI_VERSION=1.3.0
 KUBEBUILDER_VERSION=2.3.1
 KUSTOMIZE_VERSION=3.9.2
-PROTOC_VERSION=3.14.0
+PROTOC_VERSION=3.15.0
 
 ## DON'T EDIT BELOW THIS LINE
 
@@ -11,9 +12,12 @@ SUDO=sudo
 CURL=curl -Lsf
 BINDIR := $(PWD)/bin
 CONTROLLER_GEN := $(BINDIR)/controller-gen
+KUSTOMIZE := $(BINDIR)/kustomize
+STATICCHECK := $(BINDIR)/staticcheck
+NILERR := $(BINDIR)/nilerr
+INEFFASSIGN := $(BINDIR)/ineffassign
 KUBEBUILDER_ASSETS := $(BINDIR)
 PROTOC := PATH=$(BINDIR):$(PATH) $(BINDIR)/protoc -I=$(PWD)/include:.
-PACKAGES := unzip lvm2 xfsprogs
 
 GO_FILES=$(shell find -name '*.go' -not -name '*_test.go')
 GOOS := $(shell go env GOOS)
@@ -44,9 +48,9 @@ PROTOBUF_GEN = csi/csi.pb.go csi/csi_grpc.pb.go
 .PHONY: test
 test:
 	test -z "$$(gofmt -s -l . | grep -v '^vendor' | tee /dev/stderr)"
-	~/go/bin/staticcheck ./...
-	test -z "$$(~/go/bin/nilerr ./... 2>&1 | tee /dev/stderr)"
-	~/go/bin/ineffassign .
+	$(STATICCHECK) ./...
+	test -z "$$($(NILERR) ./... 2>&1 | tee /dev/stderr)"
+	$(INEFFASSIGN) .
 	go install ./...
 	go test -race -v ./...
 	go vet ./...
@@ -64,6 +68,11 @@ manifests:
 	rm -f deploy/manifests/base/crd.yaml
 	cp config/crd/bases/topols.kvaster.com_logicalvolumes.yaml deploy/manifests/base/crd.yaml
 
+# Generate final manifest
+.PHONY: final-manifest
+final-manifest:
+	$(KUSTOMIZE) build ./deploy/manifests/overlays/daemonset-scheduler > deploy/topols.yaml
+
 .PHONY: generate
 generate: $(PROTOBUF_GEN)
 	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./api/..."
@@ -79,7 +88,7 @@ build: build/hypertopols csi-sidecars
 
 build/hypertopols: $(GO_FILES)
 	mkdir -p build
-	go build -o $@ -ldflags "-X github.com/kvaster/topols.Version=$(TOPOLS_VERSION)" ./pkg/hypertopols
+	go build -o $@ -ldflags "-w -s -X github.com/kvaster/topols.Version=$(TOPOLS_VERSION)" ./pkg/hypertopols
 
 .PHONY: csi-sidecars
 csi-sidecars:
@@ -106,10 +115,10 @@ clean:
 
 .PHONY: tools
 tools:
-	cd /tmp; env GO111MODULE=on go get golang.org/x/tools/cmd/goimports
-	cd /tmp; env GO111MODULE=on go get honnef.co/go/tools/cmd/staticcheck
-	cd /tmp; env GO111MODULE=on go get github.com/gordonklaus/ineffassign
-	cd /tmp; env GO111MODULE=on go get github.com/gostaticanalysis/nilerr/cmd/nilerr
+	GOBIN=$(BINDIR) go install golang.org/x/tools/cmd/goimports@latest
+	GOBIN=$(BINDIR) go install honnef.co/go/tools/cmd/staticcheck@latest
+	GOBIN=$(BINDIR) go install github.com/gordonklaus/ineffassign@latest
+	GOBIN=$(BINDIR) go install github.com/gostaticanalysis/nilerr/cmd/nilerr@latest
 
 .PHONY: setup
 setup: tools
@@ -125,14 +134,31 @@ setup: tools
 	curl -sfL https://go.kubebuilder.io/dl/$(KUBEBUILDER_VERSION)/$(GOOS)/$(GOARCH) | tar -xz -C /tmp/
 	mv /tmp/kubebuilder_$(KUBEBUILDER_VERSION)_$(GOOS)_$(GOARCH)/bin/* bin/
 	rm -rf /tmp/kubebuilder_*
-	GOBIN=$(BINDIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen
+	GOBIN=$(BINDIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION)
 
 	curl -sfL -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip
 	unzip -o protoc.zip bin/protoc 'include/*'
 	rm -f protoc.zip
-	GOBIN=$(BINDIR) go install google.golang.org/protobuf/cmd/protoc-gen-go
-	GOBIN=$(BINDIR) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc
-	GOBIN=$(BINDIR) go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc
+	GOBIN=$(BINDIR) go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	GOBIN=$(BINDIR) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+	GOBIN=$(BINDIR) go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@latest
 
-	curl -sSLf https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv$(KUSTOMIZE_VERSION)/kustomize_v$(KUSTOMIZE_VERSION)_linux_amd64.tar.gz | tar -xz -C $(BINDIR)
-	GOBIN=$(BINDIR) go install github.com/onsi/ginkgo/ginkgo
+	GOBIN=$(BINDIR) go install github.com/onsi/ginkgo/ginkgo@latest
+
+	# check if kustomize suports `go install` command.
+	# known issue https://github.com/kubernetes-sigs/kustomize/issues/3618
+	$(call go-get-tool,$(KUSTOMIZE),sigs.k8s.io/kustomize/kustomize/v3@v$(KUSTOMIZE_VERSION))
+
+# go-get-tool will 'go get' any package $2 and install it to $1.
+PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
+define go-get-tool
+@[ -f $(1) ] || { \
+set -e ;\
+TMP_DIR=$$(mktemp -d) ;\
+cd $$TMP_DIR ;\
+go mod init tmp ;\
+echo "Downloading $(2)" ;\
+GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
+rm -rf $$TMP_DIR ;\
+}
+endef

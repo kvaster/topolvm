@@ -33,8 +33,7 @@ import (
 var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
-var testCtx = context.Background()
-var stopCtx, stopCancel = context.WithCancel(testCtx)
+var testCtx, testCancel = context.WithCancel(context.Background())
 
 const (
 	topolsProvisionerStorageClassName          = "topols-provisioner"
@@ -214,7 +213,7 @@ var _ = BeforeSuite(func() {
 	Expect(k8sClient).ToNot(BeNil())
 
 	By("running webhook server")
-	go run(stopCtx, cfg, scheme, &testEnv.WebhookInstallOptions)
+	go run(testCtx, cfg, scheme, &testEnv.WebhookInstallOptions)
 	d := &net.Dialer{Timeout: time.Second}
 	Eventually(func() error {
 		serverURL := fmt.Sprintf("%s:%d", testEnv.WebhookInstallOptions.LocalServingHost, testEnv.WebhookInstallOptions.LocalServingPort)
@@ -236,7 +235,7 @@ var _ = BeforeSuite(func() {
 
 var _ = AfterSuite(func() {
 	By("tearing down the test environment")
-	stopCancel()
+	testCancel()
 	err := testEnv.Stop()
 	Expect(err).ToNot(HaveOccurred())
 })

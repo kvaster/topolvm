@@ -46,7 +46,7 @@ When doing so, do not apply [certificates.yaml](./manifests/base/certificates.ya
 4. Edit `MutatingWebhookConfiguration` in [mutatingwebhooks.yaml](./manifests/base/mutatingwebhooks.yaml) as follows:
 
     ```yaml
-    apiVersion: admissionregistration.k8s.io/v1beta1
+    apiVersion: admissionregistration.k8s.io/v1
     kind: MutatingWebhookConfiguration
     metadata:
       name: topols-hook

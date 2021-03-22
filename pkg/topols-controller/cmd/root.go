@@ -8,6 +8,7 @@ import (
 	"github.com/kvaster/topols"
 	"github.com/spf13/cobra"
 	"k8s.io/klog"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 )
 
 var config struct {
@@ -16,7 +17,7 @@ var config struct {
 	webhookAddr      string
 	certDir          string
 	leaderElectionID string
-	development      bool
+	zapOpts          zap.Options
 }
 
 var rootCmd = &cobra.Command{
@@ -45,12 +46,13 @@ func init() {
 	fs := rootCmd.Flags()
 	fs.StringVar(&config.csiSocket, "csi-socket", topols.DefaultCSISocket, "UNIX domain socket filename for CSI")
 	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "Listen address for metrics")
-	fs.StringVar(&config.webhookAddr, "webhook-addr", ":8443", "Listen address for the webhook endpoint")
+	fs.StringVar(&config.webhookAddr, "webhook-addr", ":9443", "Listen address for the webhook endpoint")
 	fs.StringVar(&config.certDir, "cert-dir", "", "certificate directory")
 	fs.StringVar(&config.leaderElectionID, "leader-election-id", "topols", "ID for leader election by controller-runtime")
-	fs.BoolVar(&config.development, "development", false, "Use development logger config")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)
+	config.zapOpts.BindFlags(goflags)
+
 	fs.AddGoFlagSet(goflags)
 }
