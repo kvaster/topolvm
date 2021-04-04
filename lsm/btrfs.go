@@ -126,17 +126,18 @@ func removeSubvol(path string) error {
 	_, _, subvolId, err := parseSubvolume(path)
 	if err != nil {
 		btrfsLogger.Info("Error parsing subvolume info", "Err", err.Error(), "Path", path)
-		return nil
-	}
-	_, err = runCmd("/sbin/btrfs", "qgroup", "destroy", "0/"+strconv.FormatUint(subvolId, 10), path)
-	if err != nil {
-		btrfsLogger.Info("Warning: error on qgroup destroy", "Err", err.Error(), "Path", path)
+		return err
 	}
 
 	_, err = runCmd("/sbin/btrfs", "subvol", "delete", path)
 	if err != nil {
 		btrfsLogger.Info("Error on subvol delete", "Err", err.Error(), "Path", path)
 		return err
+	}
+
+	_, err = runCmd("/sbin/btrfs", "qgroup", "destroy", "0/"+strconv.FormatUint(subvolId, 10), path)
+	if err != nil {
+		btrfsLogger.Info("Warning: error on qgroup destroy", "Err", err.Error(), "Path", path)
 	}
 
 	return nil
