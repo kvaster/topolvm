@@ -734,7 +734,7 @@ spec:
       - command:
         - /topols-controller
         - --cert-dir=/certs
-        image: ghcr.io/kvaster/topols:0.8.1
+        image: ghcr.io/kvaster/topols:0.8.2
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -764,7 +764,7 @@ spec:
         - --feature-gates=Topology=true
         - --leader-election
         - --leader-election-namespace=topols-system
-        image: ghcr.io/kvaster/topols:0.8.1
+        image: ghcr.io/kvaster/topols:0.8.2
         name: csi-provisioner
         volumeMounts:
         - mountPath: /run/topols
@@ -774,7 +774,7 @@ spec:
         - --csi-address=/run/topols/csi-topols.sock
         - --leader-election
         - --leader-election-namespace=topols-system
-        image: ghcr.io/kvaster/topols:0.8.1
+        image: ghcr.io/kvaster/topols:0.8.2
         name: csi-attacher
         volumeMounts:
         - mountPath: /run/topols
@@ -784,7 +784,7 @@ spec:
         - --csi-address=/run/topols/csi-topols.sock
         - --leader-election
         - --leader-election-namespace=topols-system
-        image: ghcr.io/kvaster/topols:0.8.1
+        image: ghcr.io/kvaster/topols:0.8.2
         name: csi-resizer
         volumeMounts:
         - mountPath: /run/topols
@@ -792,7 +792,7 @@ spec:
       - command:
         - /livenessprobe
         - --csi-address=/run/topols/csi-topols.sock
-        image: ghcr.io/kvaster/topols:0.8.1
+        image: ghcr.io/kvaster/topols:0.8.2
         name: liveness-probe
         volumeMounts:
         - mountPath: /run/topols
@@ -832,7 +832,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        image: ghcr.io/kvaster/topols:0.8.1
+        image: ghcr.io/kvaster/topols:0.8.2
         livenessProbe:
           failureThreshold: 3
           httpGet:
@@ -866,7 +866,7 @@ spec:
         - /csi-node-driver-registrar
         - --csi-address=/run/topols/csi-topols.sock
         - --kubelet-registration-path=/var/lib/kubelet/plugins/topols.kvaster.com/node/csi-topols.sock
-        image: ghcr.io/kvaster/topols:0.8.1
+        image: ghcr.io/kvaster/topols:0.8.2
         lifecycle:
           preStop:
             exec:
@@ -883,7 +883,7 @@ spec:
       - command:
         - /livenessprobe
         - --csi-address=/run/topols/csi-topols.sock
-        image: ghcr.io/kvaster/topols:0.8.1
+        image: ghcr.io/kvaster/topols:0.8.2
         name: liveness-probe
         volumeMounts:
         - mountPath: /run/topols
@@ -936,7 +936,7 @@ spec:
       - command:
         - /topols-scheduler
         - --config=/etc/topols/scheduler-options.yaml
-        image: ghcr.io/kvaster/topols:0.8.1
+        image: ghcr.io/kvaster/topols:0.8.2
         livenessProbe:
           httpGet:
             host: localhost
