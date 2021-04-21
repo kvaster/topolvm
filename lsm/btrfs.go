@@ -57,7 +57,9 @@ type btrfs struct {
 }
 
 func newBtrfs(path string) (*btrfs, error) {
-	return &btrfs{poolPath: path}, nil
+	fs := &btrfs{poolPath: path}
+	fs.loadConfig()
+	return fs, nil
 }
 
 func (c *btrfs) Watch() chan struct{} {
@@ -242,6 +244,9 @@ func (c *btrfs) NodeStats() (*NodeStats, error) {
 	var defaultDc *DeviceClassStats
 	var stats []*DeviceClassStats
 
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	for _, dc := range c.deviceClasses {
 		var used uint64 = 0
 		for _, v := range dc.Volumes {
@@ -300,6 +305,7 @@ func (c *btrfs) Start(ctx context.Context) error {
 		return err
 	}
 
+	// reload config after watcher is enabled
 	c.loadConfig()
 
 	for {
