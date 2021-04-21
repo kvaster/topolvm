@@ -108,20 +108,21 @@ OPTIONAL: tune the node scoring
 -------------------------------
 
 The node scoring for Pod scheduling can be fine-tuned with the following two ways:
-1. Adjust `divisor` parameter in the scoring expression
+1. Adjust `weights` parameters in the scoring expression
 2. Change the weight for the node scoring against the default by kube-scheduler
 
 The scoring expression in `topols-scheduler` is as follows:
 ```
-min(10, max(0, log2(capacity >> 30 / divisor)))
+avg_by_weight((1 - requested / capacity) * 10)
 ```
-For example, the default of `divisor` is `1`, then if a node has the free disk capacity more than `1024GiB`, `topols-scheduler` scores the node as `10`. `divisor` should be adjusted to suit each environment. It can be specified the default value and values for each device-class in [scheduler-options.yaml](./manifests/overlays/daemonset-scheduler/scheduler-options.yaml) as follows:
+For example, if a node has the two different type of disks - small sdd for fast data and big hdd for big data,
+`topols-scheduler` can be adjusted for ssd score to have more weight, cause balanced ssd usage is more important
+due to smaller capacity. Weight can be specified for each device-class in [scheduler-options.yaml](./manifests/overlays/daemonset-scheduler/scheduler-options.yaml) as follows:
 
 ```yaml
-default-divisor: 1
-divisors:
-  ssd: 1
-  hdd: 10
+weights:
+  ssd: 10
+  hdd: 1
 ```
 
 Besides, the scoring weight can be passed to kube-scheduler via [scheduler-config.yaml](./scheduler-config/scheduler-config.yaml). Almost all scoring algorithms in kube-scheduler are weighted as `"weight": 1`. So if you want to give a priority to the scoring by `topols-scheduler`, you have to set the weight as a value larger than one like as follows:
