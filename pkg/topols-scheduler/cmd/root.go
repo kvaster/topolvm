@@ -14,22 +14,18 @@ import (
 
 var cfgFilePath string
 
-const defaultDivisor = 1
 const defaultListenAddr = ":8000"
 
 // Config represents configuration parameters for topols-scheduler
 type Config struct {
 	// ListenAddr is listen address of topols-scheduler.
 	ListenAddr string `json:"listen"`
-	// Divisors is a mapping between device-class names and their divisors.
-	Divisors map[string]float64 `json:"divisors"`
-	// DefaultDivisor is the default divisor value.
-	DefaultDivisor float64 `json:"default-divisor"`
+	// Weights is a mapping between device-class names and their weights, default weight is 1.
+	Weights map[string]float64 `json:"weights"`
 }
 
 var config = &Config{
-	ListenAddr:     defaultListenAddr,
-	DefaultDivisor: defaultDivisor,
+	ListenAddr: defaultListenAddr,
 }
 
 var rootCmd = &cobra.Command{
@@ -46,11 +42,16 @@ The requested capacity is read from "capacity.topols.kvaster.com/<device-class>"
 resource value.
 
 The prioritize verb is "prioritize" and served at "/prioritize" via HTTP.
-It scores nodes with this formula:
+For each device class request score is calculated with the following formula:
 
-    min(10, max(0, log2(capacity >> 30 / divisor)))
+	(1 - requested / capacity)
 
-The default divisor is 1.  It can be changed with a command-line option.
+Final (node) score is calculated in the following way:
+
+    avg(device_class_score) * 10
+
+Average is calculated with weights. By default each device class have weight of 1
+and can be changed by config. 
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
@@ -75,7 +76,7 @@ func subMain() error {
 		}
 	}
 
-	h, err := scheduler.NewHandler(config.DefaultDivisor, config.Divisors)
+	h, err := scheduler.NewHandler(config.Weights)
 	if err != nil {
 		return err
 	}

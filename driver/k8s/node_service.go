@@ -36,7 +36,10 @@ func (s NodeService) getNodes(ctx context.Context) (*corev1.NodeList, error) {
 
 func (s NodeService) extractCapacityFromAnnotation(node *corev1.Node, deviceClass string) (int64, error) {
 	if deviceClass == topols.DefaultDeviceClassName {
-		deviceClass = topols.DefaultDeviceClassAnnotationName
+		var ok bool
+		if deviceClass, ok = node.Annotations[topols.DefaultDeviceClassKey]; !ok {
+			return 0, fmt.Errorf("default device class is not found")
+		}
 	}
 	c, ok := node.Annotations[topols.CapacityKeyPrefix+deviceClass]
 	if !ok {

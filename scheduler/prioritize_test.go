@@ -1,6 +1,7 @@
 package scheduler
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -9,39 +10,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestCapacityToScore(t *testing.T) {
-	testCases := []struct {
-		input   uint64
-		divisor float64
-		expect  int
-	}{
-		{0, 1, 0},
-		{1, 1, 0},
-		{128 << 30, 1, 7},
-		{128 << 30, 2, 6},
-		{128 << 30, 0.5, 8},
-		{^uint64(0), 1, 10},
-	}
-
-	for _, tt := range testCases {
-		score := capacityToScore(tt.input, tt.divisor)
-		if score != tt.expect {
-			t.Errorf("score incorrect: input=%d expect=%d actual=%d",
-				tt.input,
-				tt.expect,
-				score,
-			)
-		}
-	}
-}
-
 func TestScoreNodes(t *testing.T) {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
-				topols.CapacityKeyPrefix + "ssd":  "64",
-				topols.CapacityKeyPrefix + "hdd1": "64",
-				topols.CapacityKeyPrefix + "hdd2": "64",
+				topols.CapacityKeyPrefix + "ssd":  fmt.Sprintf("%d", 64<<30),
+				topols.CapacityKeyPrefix + "hdd1": fmt.Sprintf("%d", 64<<30),
+				topols.CapacityKeyPrefix + "hdd2": fmt.Sprintf("%d", 64<<30),
 			},
 		},
 	}
@@ -64,7 +39,7 @@ func TestScoreNodes(t *testing.T) {
 	expected := []HostPriority{
 		{
 			Host:  "10.1.1.1",
-			Score: 3,
+			Score: 5,
 		},
 		{
 			Host:  "10.1.1.2",
@@ -76,12 +51,11 @@ func TestScoreNodes(t *testing.T) {
 		},
 	}
 
-	defaultDivisor := 2.0
-	divisors := map[string]float64{
-		"ssd":  4,
-		"hdd1": 10,
+	weights := map[string]float64{
+		"ssd":  1,
+		"hdd1": 1.5,
 	}
-	result := scoreNodes(pod, input, defaultDivisor, divisors)
+	result := scoreNodes(pod, input, weights)
 	if !reflect.DeepEqual(result, expected) {
 		t.Errorf("expected scoreNodes() to be %#v, but actual %#v", expected, result)
 	}

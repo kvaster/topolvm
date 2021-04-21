@@ -42,6 +42,9 @@ const DefaultDeviceClassAnnotationName = "00default"
 // DefaultDeviceClassName is the name for the default device-class.
 const DefaultDeviceClassName = ""
 
+// DefaultDeviceClassKey is the key that represents default device class on Node
+const DefaultDeviceClassKey = "topols.kvaster.com/default-device-class"
+
 // DefaultSizeGb is the default size in GiB for  volumes (PVC or inline ephemeral volumes) w/o capacity requests.
 const DefaultSizeGb = 1
 

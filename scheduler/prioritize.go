@@ -5,40 +5,15 @@ import (
 	"math"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/kvaster/topols"
 	corev1 "k8s.io/api/core/v1"
 )
 
-func capacityToScore(capacity uint64, divisor float64) int {
-	gb := capacity >> 30
-
-	// avoid logarithm of zero, which diverges to negative infinity.
-	if gb == 0 {
-		return 0
-	}
-
-	converted := int(math.Log2(float64(gb) / divisor))
-	switch {
-	case converted < 0:
-		return 0
-	case converted > 10:
-		return 10
-	default:
-		return converted
-	}
-}
-
-func scoreNodes(pod *corev1.Pod, nodes []corev1.Node, defaultDivisor float64, divisors map[string]float64) []HostPriority {
-	var dcs []string
-	for k := range pod.Annotations {
-		if strings.HasPrefix(k, topols.CapacityKeyPrefix) {
-			dcs = append(dcs, k[len(topols.CapacityKeyPrefix):])
-		}
-	}
-	if len(dcs) == 0 {
+func scoreNodes(pod *corev1.Pod, nodes []corev1.Node, weights map[string]float64) []HostPriority {
+	requested := extractRequestedSize(pod)
+	if len(requested) == 0 {
 		return nil
 	}
 
@@ -49,7 +24,7 @@ func scoreNodes(pod *corev1.Pod, nodes []corev1.Node, defaultDivisor float64, di
 		r := &result[i]
 		item := nodes[i]
 		go func() {
-			score := scoreNode(item, dcs, defaultDivisor, divisors)
+			score := scoreNode(item, requested, weights)
 			*r = HostPriority{Host: item.Name, Score: score}
 			wg.Done()
 		}()
@@ -59,27 +34,40 @@ func scoreNodes(pod *corev1.Pod, nodes []corev1.Node, defaultDivisor float64, di
 	return result
 }
 
-func scoreNode(item corev1.Node, deviceClasses []string, defaultDivisor float64, divisors map[string]float64) int {
-	minScore := math.MaxInt32
-	for _, dc := range deviceClasses {
-		if val, ok := item.Annotations[topols.CapacityKeyPrefix+dc]; ok {
-			capacity, _ := strconv.ParseUint(val, 10, 64)
-			var divisor float64
-			if v, ok := divisors[dc]; ok {
-				divisor = v
-			} else {
-				divisor = defaultDivisor
-			}
-			score := capacityToScore(capacity, divisor)
-			if score < minScore {
-				minScore = score
+func scoreNode(item corev1.Node, requested map[string]int64, weights map[string]float64) int {
+	totalWeight := float64(0)
+	score := float64(0)
+
+	for dc, r := range requested {
+		if dc == topols.DefaultDeviceClassAnnotationName {
+			var ok bool
+			if dc, ok = item.Annotations[topols.DefaultDeviceClassKey]; !ok {
+				// no default device class while requested - should not happen after filtering nodes
+				return 0
 			}
 		}
+
+		if val, ok := item.Annotations[topols.CapacityKeyPrefix+dc]; ok {
+			capacity, _ := strconv.ParseInt(val, 10, 64)
+			if capacity < r {
+				// requested capacity is bigger when available - should not happen after filtering nodes
+				return 0
+			}
+
+			var weight float64
+			if weight, ok = weights[dc]; !ok {
+				weight = 1
+			}
+
+			totalWeight += weight
+			score += (1 - (float64(r) / float64(capacity))) * weight
+		} else {
+			// no requested device class found - should not happen after filtering nodes
+			return 0
+		}
 	}
-	if minScore == math.MaxInt32 {
-		minScore = 0
-	}
-	return minScore
+
+	return int(math.Round(score * 10 / totalWeight))
 }
 
 func (s scheduler) prioritize(w http.ResponseWriter, r *http.Request) {
@@ -92,8 +80,8 @@ func (s scheduler) prioritize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result := scoreNodes(input.Pod, input.Nodes.Items, s.defaultDivisor, s.divisors)
+	result := scoreNodes(input.Pod, input.Nodes.Items, s.weights)
 
 	w.Header().Set("content-type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }

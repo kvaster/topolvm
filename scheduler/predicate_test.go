@@ -61,7 +61,7 @@ func TestFilterNodes(t *testing.T) {
 					},
 				},
 				FailedNodes: FailedNodesMap{
-					"10.1.1.2": "out of VG free space",
+					"10.1.1.2": "out of free space",
 					"10.1.1.3": "no capacity annotation",
 					"10.1.1.4": "bad capacity annotation: foo",
 				},
@@ -87,8 +87,8 @@ func TestFilterNodes(t *testing.T) {
 					},
 				},
 				FailedNodes: FailedNodesMap{
-					"10.1.1.2": "out of VG free space",
-					"10.1.1.3": "out of VG free space",
+					"10.1.1.2": "out of free space",
+					"10.1.1.3": "out of free space",
 				},
 			},
 		},

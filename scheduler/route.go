@@ -6,8 +6,7 @@ import (
 )
 
 type scheduler struct {
-	defaultDivisor float64
-	divisors       map[string]float64
+	weights map[string]float64
 }
 
 func (s scheduler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -24,16 +23,16 @@ func (s scheduler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // NewHandler return new http.Handler of the scheduler extender
-func NewHandler(defaultDiv float64, divisors map[string]float64) (http.Handler, error) {
-	for _, divisor := range divisors {
-		if divisor <= 0 {
-			return nil, fmt.Errorf("invalid divisor: %f", divisor)
+func NewHandler(weights map[string]float64) (http.Handler, error) {
+	for _, weight := range weights {
+		if weight <= 0 {
+			return nil, fmt.Errorf("invalid weight: %f", weight)
 		}
 	}
-	return scheduler{defaultDiv, divisors}, nil
+	return scheduler{weights}, nil
 }
 
-func status(w http.ResponseWriter, r *http.Request) {
+func status(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("ok"))
+	_, _ = w.Write([]byte("ok"))
 }

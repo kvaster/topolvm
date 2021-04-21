@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/kvaster/topols/lsm"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/kvaster/topols"
@@ -63,14 +64,14 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 		}
 	}()
 
+	watch := m.lvmc.Watch()
+
 	// make first update as soon as we start
 	// cause node Finalizer is updated here and it's not good...
 	// probably this should be fixed somehow
 	if err := m.updateNode(ctx, metricsCh); err != nil {
 		return err
 	}
-
-	watch := m.lvmc.Watch()
 
 	ticker := time.NewTicker(10 * time.Minute)
 	for {
@@ -132,12 +133,28 @@ func (m *metricsExporter) updateNode(ctx context.Context, ch chan<- *lsm.DeviceC
 	}
 
 	if stats.Default != nil {
-		node2.Annotations[topols.CapacityKeyPrefix+topols.DefaultDeviceClassAnnotationName] = strconv.FormatUint(stats.Default.TotalBytes-stats.Default.UsedBytes, 10)
+		node2.Annotations[topols.DefaultDeviceClassKey] = stats.Default.DeviceClass
+	} else {
+		delete(node2.Annotations, topols.DefaultDeviceClassKey)
+	}
+
+	capacityKeys := make(map[string]struct{})
+	for k := range node2.Annotations {
+		if strings.HasPrefix(k, topols.CapacityKeyPrefix) {
+			capacityKeys[k] = struct{}{}
+		}
 	}
 
 	for _, s := range stats.DeviceClasses {
-		node2.Annotations[topols.CapacityKeyPrefix+s.DeviceClass] = strconv.FormatUint(s.TotalBytes-s.UsedBytes, 10)
+		key := topols.CapacityKeyPrefix + s.DeviceClass
+		node2.Annotations[key] = strconv.FormatUint(s.TotalBytes-s.UsedBytes, 10)
+		delete(capacityKeys, key)
 	}
+
+	for k := range capacityKeys {
+		delete(node2.Annotations, k)
+	}
+
 	if err := m.Patch(ctx, node2, client.MergeFrom(&node)); err != nil {
 		return err
 	}

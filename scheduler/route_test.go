@@ -45,7 +45,7 @@ var extenderArgs = ExtenderArgs{
 func testPredicate(t *testing.T) {
 	t.Parallel()
 
-	handler, err := NewHandler(1, map[string]float64{
+	handler, err := NewHandler(map[string]float64{
 		"ssd": 1,
 	})
 	if err != nil {
@@ -92,7 +92,7 @@ func testPredicate(t *testing.T) {
 func testPrioritize(t *testing.T) {
 	t.Parallel()
 
-	handler, err := NewHandler(1, map[string]float64{
+	handler, err := NewHandler(map[string]float64{
 		"ssd": 1,
 	})
 	if err != nil {
@@ -122,11 +122,11 @@ func testPrioritize(t *testing.T) {
 	expected := HostPriorityList{
 		{
 			Host:  "10.1.1.1",
-			Score: 1,
+			Score: 0,
 		},
 		{
 			Host:  "10.1.1.2",
-			Score: 2,
+			Score: 4,
 		},
 	}
 	if !reflect.DeepEqual(result, expected) {

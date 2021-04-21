@@ -46,6 +46,13 @@ func filterNodes(nodes corev1.NodeList, requested map[string]int64) ExtenderFilt
 
 func filterNode(node corev1.Node, requested map[string]int64) string {
 	for dc, required := range requested {
+		if dc == topols.DefaultDeviceClassAnnotationName {
+			var ok bool
+			if dc, ok = node.Annotations[topols.DefaultDeviceClassKey]; !ok {
+				return "no default device class"
+			}
+		}
+
 		val, ok := node.Annotations[topols.CapacityKeyPrefix+dc]
 		if !ok {
 			return "no capacity annotation"
@@ -55,7 +62,7 @@ func filterNode(node corev1.Node, requested map[string]int64) string {
 			return "bad capacity annotation: " + val
 		}
 		if capacity < uint64(required) {
-			return "out of VG free space"
+			return "out of free space"
 		}
 	}
 	return ""
@@ -91,5 +98,5 @@ func (s scheduler) predicate(w http.ResponseWriter, r *http.Request) {
 	requested := extractRequestedSize(input.Pod)
 	result := filterNodes(*input.Nodes, requested)
 	w.Header().Set("content-type", "application/json")
-	json.NewEncoder(w).Encode(result)
+	_ = json.NewEncoder(w).Encode(result)
 }
