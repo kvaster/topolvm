@@ -54,7 +54,10 @@ For production deployments, see [deploy/README.md](./deploy/README.md).
 Docker images
 -------------
 
-Docker images are available on [ghcr.io](https://github.com/users/kvaster/packages/container/package/topols)
+Docker images are available on `ghcr.io`:
+
+[topols](https://github.com/users/kvaster/packages/container/package/topols)
+[topols-with-sidecar](https://github.com/users/kvaster/packages/container/package/topols-with-sidecar)
 
 [releases]: https://github.com/kvaster/topols/releases
 [CSI]: https://github.com/container-storage-interface/spec
