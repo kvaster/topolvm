@@ -7,7 +7,7 @@ ARG TOPOLS_VERSION
 COPY . /workdir
 WORKDIR /workdir
 
-RUN touch csi/*.go lvmd/proto/*.go docs/*.md \
+RUN touch csi/*.go docs/*.md \
     && apk add --update make curl bash \
     && make build TOPOLS_VERSION=${TOPOLS_VERSION}
 
