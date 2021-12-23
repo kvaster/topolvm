@@ -22,7 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"time"
-	// +kubebuilder:scaffold:imports
+	//+kubebuilder:scaffold:imports
 )
 
 var (
@@ -31,10 +31,10 @@ var (
 )
 
 func init() {
-	utilruntime.Must(topolsv1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	// +kubebuilder:scaffold:scheme
+	utilruntime.Must(topolsv1.AddToScheme(scheme))
+	//+kubebuilder:scaffold:scheme
 }
 
 func subMain() error {
@@ -55,7 +55,7 @@ func subMain() error {
 		return err
 	}
 
-	lvmc, err := lsm.New("/mnt/pool")
+	lvmc, err := lsm.New(config.poolPath)
 	if err != nil {
 		setupLog.Error(err, "unable to create lvm client")
 		return err
@@ -74,7 +74,7 @@ func subMain() error {
 		setupLog.Error(err, "unable to create controller", "controller", "LogicalVolume")
 		return err
 	}
-	// +kubebuilder:scaffold:builder
+	//+kubebuilder:scaffold:builder
 
 	// Add health checker to manager
 	checker := runners.NewChecker(checkFunc(mgr.GetAPIReader()), 1*time.Minute)
@@ -94,7 +94,7 @@ func subMain() error {
 	if err != nil {
 		return err
 	}
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(ErrorLoggingInterceptor))
 	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService(checker.Ready))
 	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(nodename, lvmc, s))
 	err = mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false))
@@ -111,6 +111,8 @@ func subMain() error {
 	return nil
 }
 
+//+kubebuilder:rbac:groups=storage.k8s.io,resources=csidrivers,verbs=get;list;watch
+
 func checkFunc(r client.Reader) func() error {
 	return func() error {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -119,4 +121,12 @@ func checkFunc(r client.Reader) func() error {
 		var drv storagev1.CSIDriver
 		return r.Get(ctx, types.NamespacedName{Name: topols.PluginName}, &drv)
 	}
+}
+
+func ErrorLoggingInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	resp, err = handler(ctx, req)
+	if err != nil {
+		ctrl.Log.Error(err, "error on grpc call", "method", info.FullMethod)
+	}
+	return resp, err
 }

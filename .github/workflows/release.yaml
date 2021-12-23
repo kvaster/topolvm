@@ -35,3 +35,13 @@ jobs:
             ghcr.io/kvaster/topols:${{ steps.check_version.outputs.version }}
           build-args: |
             TOPOLS_VERSION=${{ steps.check_version.outputs.version }}
+      - name: Build and push with sidecar
+        uses: docker/build-push-action@v2
+        with:
+          file: Dockerfile.with-sidecar
+          push: true
+          tags: |
+            ghcr.io/kvaster/topols-with-sidecar:latest
+            ghcr.io/kvaster/topols-with-sidecar:${{ steps.check_version.outputs.version }}
+          build-args: |
+            TOPOLS_VERSION=${{ steps.check_version.outputs.version }}

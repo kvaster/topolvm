@@ -3,7 +3,6 @@ package k8s
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
 
 	"github.com/kvaster/topols"
@@ -14,6 +13,8 @@ import (
 
 // ErrNodeNotFound represents the error that node is not found.
 var ErrNodeNotFound = errors.New("node not found")
+var ErrDeviceClassNotFound = errors.New("device class not found")
+var ErrDefaultDeviceClassNotFound = errors.New("default device class not found")
 
 // NodeService represents node service.
 type NodeService struct {
@@ -38,12 +39,12 @@ func (s NodeService) extractCapacityFromAnnotation(node *corev1.Node, deviceClas
 	if deviceClass == topols.DefaultDeviceClassName {
 		var ok bool
 		if deviceClass, ok = node.Annotations[topols.DefaultDeviceClassKey]; !ok {
-			return 0, fmt.Errorf("default device class is not found")
+			return 0, ErrDefaultDeviceClassNotFound
 		}
 	}
 	c, ok := node.Annotations[topols.CapacityKeyPrefix+deviceClass]
 	if !ok {
-		return 0, fmt.Errorf("%s is not found", topols.CapacityKeyPrefix+deviceClass)
+		return 0, ErrDeviceClassNotFound
 	}
 	return strconv.ParseInt(c, 10, 64)
 }

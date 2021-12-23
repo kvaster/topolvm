@@ -19,11 +19,12 @@ import (
 // NodeReconciler reconciles a Node object
 type NodeReconciler struct {
 	client.Client
+	SkipNodeFinalize bool
 }
 
-// +kubebuilder:rbac:groups="",resources=nodes,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch;delete
-// +kubebuilder:rbac:groups="storage.k8s.io",resources=storageclasses,verbs=get;list;watch
+//+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;update;patch
+//+kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;delete
+//+kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
 
 // Reconcile finalize Node
 func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -95,6 +96,11 @@ func (r *NodeReconciler) targetStorageClasses(ctx context.Context) (map[string]b
 }
 
 func (r *NodeReconciler) doFinalize(ctx context.Context, log logr.Logger, node *corev1.Node) (ctrl.Result, error) {
+	if r.SkipNodeFinalize {
+		log.Info("skipping node finalize")
+		return ctrl.Result{}, nil
+	}
+
 	scs, err := r.targetStorageClasses(ctx)
 	if err != nil {
 		log.Error(err, "unable to fetch StorageClass")
@@ -178,7 +184,7 @@ func (r *NodeReconciler) cleanupLogicalVolume(ctx context.Context, log logr.Logg
 	return nil
 }
 
-// SetupWithManager sets up Reconciler with Manager.
+// SetupWithManager sets up the controller with the Manager.
 func (r *NodeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	ctx := context.Background()
 	err := mgr.GetFieldIndexer().IndexField(ctx, &corev1.PersistentVolumeClaim{}, keySelectedNode, func(o client.Object) []string {

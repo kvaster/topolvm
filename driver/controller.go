@@ -68,7 +68,9 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			modeName := csi.VolumeCapability_AccessMode_Mode_name[int32(mode.GetMode())]
 			ctrlLogger.Info("CreateVolume specifies volume capability", "access_mode", modeName)
 			// we only support SINGLE_NODE_WRITER
-			if mode.GetMode() != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
+			switch mode.GetMode() {
+			case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER:
+			default:
 				return nil, status.Errorf(codes.InvalidArgument, "unsupported access mode: %s", modeName)
 			}
 		}
@@ -96,7 +98,7 @@ func (s controllerService) CreateVolume(ctx context.Context, req *csi.CreateVolu
 			return nil, status.Error(codes.Internal, "can not find any node")
 		}
 		if capacity < requestBytes {
-			return nil, status.Errorf(codes.Internal, "can not find enough volume space %d", capacity)
+			return nil, status.Errorf(codes.ResourceExhausted, "can not find enough volume space %d", capacity)
 		}
 		node = nodeName
 	} else {
@@ -247,13 +249,18 @@ func (s controllerService) GetCapacity(ctx context.Context, req *csi.GetCapacity
 	default:
 		v, ok := topology.Segments[topols.TopologyNodeKey]
 		if !ok {
-			return nil, status.Errorf(codes.Internal, "%s is not found in req.AccessibleTopology", topols.TopologyNodeKey)
+			err := fmt.Errorf("%s is not found in req.AccessibleTopology", topols.TopologyNodeKey)
+			ctrlLogger.Error(err, "target node key is not found")
+			return &csi.GetCapacityResponse{AvailableCapacity: 0}, nil
 		}
 		var err error
 		capacity, err = s.nodeService.GetCapacityByTopologyLabel(ctx, v, deviceClass)
 		switch err {
 		case k8s.ErrNodeNotFound:
 			ctrlLogger.Info("target is not found", "accessible_topology", req.AccessibleTopology)
+			return &csi.GetCapacityResponse{AvailableCapacity: 0}, nil
+		case k8s.ErrDeviceClassNotFound:
+			ctrlLogger.Info("target device class is not found on the specified node", "accessible_topology", req.AccessibleTopology, "device-class", deviceClass)
 			return &csi.GetCapacityResponse{AvailableCapacity: 0}, nil
 		case nil:
 		default:

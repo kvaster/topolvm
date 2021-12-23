@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "topols.fullname" . }}-controller
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "topols.labels" . | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: topols-controller
+  ports:
+    - name: webhook
+      port: 443
+      protocol: TCP
+      targetPort: webhook

@@ -1,0 +1,31 @@
+{{- if .Values.podSecurityPolicy.create }}
+---
+apiVersion: policy/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: {{ template "topols.fullname" . }}-node
+  labels:
+    {{- include "topols.labels" . | nindent 4 }}
+spec:
+  privileged: true
+  allowPrivilegeEscalation: true
+  volumes:
+    - 'configMap'
+    - 'emptyDir'
+    - 'secret'
+    - 'hostPath'
+  {{- with .Values.node.psp.allowedHostPaths }}
+  allowedHostPaths: {{ toYaml . | nindent 2 }}
+  {{- end }}
+  hostNetwork: false
+  runAsUser:
+    rule: 'RunAsAny'
+  seLinux:
+    rule: 'RunAsAny'
+  supplementalGroups:
+    rule: 'RunAsAny'
+  fsGroup:
+    rule: 'RunAsAny'
+  readOnlyRootFilesystem: true
+---
+{{- end }}

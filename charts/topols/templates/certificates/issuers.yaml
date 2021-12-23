@@ -1,0 +1,25 @@
+{{- if not .Values.webhook.existingCertManagerIssuer }}
+# Create a selfsigned Issuer, in order to create a root CA certificate for
+# signing webhook serving certificates
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ template "topols.fullname" . }}-webhook-selfsign
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "topols.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+---
+# Create an Issuer that uses the above generated CA certificate to issue certs
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ template "topols.fullname" . }}-webhook-ca
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "topols.labels" . | nindent 4 }}
+spec:
+  ca:
+    secretName: {{ template "topols.fullname" . }}-webhook-ca
+{{- end }}

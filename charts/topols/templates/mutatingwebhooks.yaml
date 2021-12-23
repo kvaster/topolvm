@@ -1,0 +1,69 @@
+{{- if or .Values.webhook.podMutatingWebhook.enabled .Values.webhook.pvcMutatingWebhook.enabled }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ template "topols.fullname" . }}-hook
+  annotations:
+    {{- if not .Values.webhook.caBundle }}
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ template "topols.fullname" . }}-mutatingwebhook
+    {{- end }}
+  labels:
+    {{- include "topols.labels" . | nindent 4 }}
+webhooks:
+  {{- if .Values.webhook.pvcMutatingWebhook.enabled }}
+  - name: pvc-hook.topols.kvaster.com
+    admissionReviewVersions:
+      - "v1"
+      - "v1beta1"
+    namespaceSelector:
+      matchExpressions:
+        - key: topols.kvaster.com/webhook
+          operator: NotIn
+          values: ["ignore"]
+    failurePolicy: Fail
+    matchPolicy: Equivalent
+    clientConfig:
+      {{- with .Values.webhook.caBundle }}
+      caBundle: {{ . }}
+      {{- end }}
+      service:
+        namespace: {{ .Release.Namespace }}
+        name: {{ template "topols.fullname" . }}-controller
+        path: /pvc/mutate
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["persistentvolumeclaims"]
+    sideEffects: None
+  {{- end }}
+  {{- if .Values.webhook.podMutatingWebhook.enabled }}
+  - name: pod-hook.topols.kvaster.com
+    admissionReviewVersions:
+      - "v1"
+      - "v1beta1"
+    namespaceSelector:
+      matchExpressions:
+        - key: topols.kvaster.com/webhook
+          operator: NotIn
+          values: ["ignore"]
+    failurePolicy: Fail
+    matchPolicy: Equivalent
+    clientConfig:
+      {{- with .Values.webhook.caBundle }}
+      caBundle: {{ . }}
+      {{- end }}
+      service:
+        namespace: {{ .Release.Namespace }}
+        name: {{ template "topols.fullname" . }}-controller
+        path: /pod/mutate
+    rules:
+      - operations: ["CREATE"]
+        apiGroups: [""]
+        apiVersions: ["v1"]
+        resources: ["pods"]
+    sideEffects: None
+  {{- end }}
+---
+{{- end }}

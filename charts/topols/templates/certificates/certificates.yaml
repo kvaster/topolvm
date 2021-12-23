@@ -1,0 +1,52 @@
+{{- if not .Values.webhook.existingCertManagerIssuer }}
+# Generate a CA Certificate used to sign certificates for the webhook
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ template "topols.fullname" . }}-webhook-ca
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "topols.labels" . | nindent 4 }}
+spec:
+  secretName: {{ template "topols.fullname" . }}-webhook-ca
+  duration: 87600h # 10y
+  issuerRef:
+    group: cert-manager.io
+    kind: Issuer
+    name: {{ template "topols.fullname" . }}-webhook-selfsign
+  commonName: ca.webhook.topols
+  isCA: true
+  usages:
+    - digital signature
+    - key encipherment
+    - cert sign
+{{- end }}
+---
+# Finally, generate a serving certificate for the webhook to use
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ template "topols.fullname" . }}-mutatingwebhook
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "topols.labels" . | nindent 4 }}
+spec:
+  secretName: {{ template "topols.fullname" . }}-mutatingwebhook
+  duration: 8760h # 1y
+  issuerRef:
+    {{- with .Values.webhook.existingCertManagerIssuer }}
+    {{- toYaml . | nindent 4 -}}
+    {{- else }}
+    group: cert-manager.io
+    kind: Issuer
+    name: {{ template "topols.fullname" . }}-webhook-ca
+    {{- end }}
+  dnsNames:
+    - {{ template "topols.fullname" . }}-controller
+    - {{ template "topols.fullname" . }}-controller.{{ .Release.Namespace }}
+    - {{ template "topols.fullname" . }}-controller.{{ .Release.Namespace }}.svc
+  usages:
+    - digital signature
+    - key encipherment
+    - server auth
+    - client auth

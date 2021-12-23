@@ -1,6 +1,6 @@
-// Package v1 contains API Schema definitions for the topolvm v1 API group
-// +kubebuilder:object:generate=true
-// +groupName=topols.kvaster.com
+// Package v1 contains API Schema definitions for the topols v1 API group
+//+kubebuilder:object:generate=true
+//+groupName=topols.kvaster.com
 package v1
 
 import (

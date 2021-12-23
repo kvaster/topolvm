@@ -17,6 +17,7 @@ var config struct {
 	webhookAddr      string
 	certDir          string
 	leaderElectionID string
+	skipNodeFinalize bool
 	zapOpts          zap.Options
 }
 
@@ -45,10 +46,11 @@ func Execute() {
 func init() {
 	fs := rootCmd.Flags()
 	fs.StringVar(&config.csiSocket, "csi-socket", topols.DefaultCSISocket, "UNIX domain socket filename for CSI")
-	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "Listen address for metrics")
+	fs.StringVar(&config.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&config.webhookAddr, "webhook-addr", ":9443", "Listen address for the webhook endpoint")
 	fs.StringVar(&config.certDir, "cert-dir", "", "certificate directory")
 	fs.StringVar(&config.leaderElectionID, "leader-election-id", "topols", "ID for leader election by controller-runtime")
+	fs.BoolVar(&config.skipNodeFinalize, "skip-node-finalize", false, "skips automatic cleanup of PhysicalVolumeClaims when a Node is deleted")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)
 	klog.InitFlags(goflags)

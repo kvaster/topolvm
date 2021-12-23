@@ -17,15 +17,15 @@ import (
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-// LogicalVolumeReconciler reconciles a LogicalVolume object on each node.
+// LogicalVolumeReconciler reconciles a LogicalVolume object
 type LogicalVolumeReconciler struct {
 	client.Client
 	nodeName string
 	lvmc     lsm.Client
 }
 
-// +kubebuilder:rbac:groups=topols.kvaster.com,resources=logicalvolumes,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=topols.kvaster.com,resources=logicalvolumes/status,verbs=get;update;patch
+//+kubebuilder:rbac:groups=topols.kvaster.com,resources=logicalvolumes,verbs=get;list;watch;update;patch
+//+kubebuilder:rbac:groups=topols.kvaster.com,resources=logicalvolumes/status,verbs=get;update;patch
 
 // NewLogicalVolumeReconciler returns LogicalVolumeReconciler with creating lvService and vgService.
 func NewLogicalVolumeReconciler(client client.Client, lvmc lsm.Client, nodeName string) *LogicalVolumeReconciler {
@@ -61,6 +61,20 @@ func (r *LogicalVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			patch := client.MergeFrom(lv)
 			if err := r.Patch(ctx, lv2, patch); err != nil {
 				log.Error(err, "failed to add finalizer", "name", lv.Name)
+				return ctrl.Result{}, err
+			}
+			return ctrl.Result{Requeue: true}, nil
+		}
+
+		if !containsKeyAndValue(lv.Labels, topols.CreatedbyLabelKey, topols.CreatedbyLabelValue) {
+			lv2 := lv.DeepCopy()
+			if lv2.Labels == nil {
+				lv2.Labels = map[string]string{}
+			}
+			lv2.Labels[topols.CreatedbyLabelKey] = topols.CreatedbyLabelValue
+			patch := client.MergeFrom(lv)
+			if err := r.Patch(ctx, lv2, patch); err != nil {
+				log.Error(err, "failed to add label", "name", lv.Name)
 				return ctrl.Result{}, err
 			}
 			return ctrl.Result{Requeue: true}, nil
@@ -103,7 +117,7 @@ func (r *LogicalVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	return ctrl.Result{}, nil
 }
 
-// SetupWithManager sets up Reconciler with Manager.
+// SetupWithManager sets up the controller with the Manager.
 func (r *LogicalVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&topolsv1.LogicalVolume{}).
@@ -314,4 +328,13 @@ func extractFromError(err error) (codes.Code, string) {
 		return codes.Internal, err.Error()
 	}
 	return s.Code(), s.Message()
+}
+
+func containsKeyAndValue(labels map[string]string, key, value string) bool {
+	for k, v := range labels {
+		if k == key && v == value {
+			return true
+		}
+	}
+	return false
 }

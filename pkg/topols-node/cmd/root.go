@@ -15,6 +15,7 @@ import (
 var config struct {
 	csiSocket   string
 	metricsAddr string
+	poolPath    string
 	zapOpts     zap.Options
 }
 
@@ -46,7 +47,8 @@ func Execute() {
 func init() {
 	fs := rootCmd.Flags()
 	fs.StringVar(&config.csiSocket, "csi-socket", topols.DefaultCSISocket, "UNIX domain socket filename for CSI")
-	fs.StringVar(&config.metricsAddr, "metrics-addr", ":8080", "Listen address for metrics")
+	fs.StringVar(&config.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	fs.StringVar(&config.poolPath, "pool-path", "/mnt/pool", "Path to folder with config and mounted btrfs file systems")
 	fs.String("nodename", "", "The resource name of the running node")
 
 	viper.BindEnv("nodename", "NODE_NAME")

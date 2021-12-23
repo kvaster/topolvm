@@ -4,16 +4,16 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/kvaster/topols"
 	"net"
 	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/kvaster/topols"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
+	admissionv1 "k8s.io/api/admissionregistration/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -130,11 +130,11 @@ var _ = BeforeSuite(func() {
 	logf.SetLogger(zap.New(zap.UseDevMode(true), zap.WriteTo(GinkgoWriter)))
 
 	By("bootstrapping test environment")
-	failPolicy := admissionregistrationv1.Fail
-	sideEffects := admissionregistrationv1.SideEffectClassNone
+	failPolicy := admissionv1.Fail
+	sideEffects := admissionv1.SideEffectClassNone
 	webhookInstallOptions := envtest.WebhookInstallOptions{
-		MutatingWebhooks: []client.Object{
-			&admissionregistrationv1.MutatingWebhookConfiguration{
+		MutatingWebhooks: []*admissionv1.MutatingWebhookConfiguration{
+			{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "topols-hook",
 				},
@@ -142,52 +142,52 @@ var _ = BeforeSuite(func() {
 					Kind:       "MutatingWebhookConfiguration",
 					APIVersion: "admissionregistration.k8s.io/v1",
 				},
-				Webhooks: []admissionregistrationv1.MutatingWebhook{
+				Webhooks: []admissionv1.MutatingWebhook{
 					{
-						Name:          "pod-hook.topols.kvaster.com",
-						FailurePolicy: &failPolicy,
-						ClientConfig: admissionregistrationv1.WebhookClientConfig{
-							Service: &admissionregistrationv1.ServiceReference{
+						Name:                    "pod-hook.topols.kvaster.com",
+						AdmissionReviewVersions: []string{"v1", "v1beta1"},
+						FailurePolicy:           &failPolicy,
+						ClientConfig: admissionv1.WebhookClientConfig{
+							Service: &admissionv1.ServiceReference{
 								Path: &podMutatingWebhookPath,
 							},
 						},
-						Rules: []admissionregistrationv1.RuleWithOperations{
+						Rules: []admissionv1.RuleWithOperations{
 							{
-								Operations: []admissionregistrationv1.OperationType{
-									admissionregistrationv1.Create,
+								Operations: []admissionv1.OperationType{
+									admissionv1.Create,
 								},
-								Rule: admissionregistrationv1.Rule{
+								Rule: admissionv1.Rule{
 									APIGroups:   []string{""},
 									APIVersions: []string{"v1"},
 									Resources:   []string{"pods"},
 								},
 							},
 						},
-						SideEffects:             &sideEffects,
-						AdmissionReviewVersions: []string{"v1", "v1beta1"},
+						SideEffects: &sideEffects,
 					},
 					{
-						Name:          "pvc-hook.topols.kvaster.com",
-						FailurePolicy: &failPolicy,
-						ClientConfig: admissionregistrationv1.WebhookClientConfig{
-							Service: &admissionregistrationv1.ServiceReference{
+						Name:                    "pvc-hook.topols.kvaster.com",
+						AdmissionReviewVersions: []string{"v1", "v1beta1"},
+						FailurePolicy:           &failPolicy,
+						ClientConfig: admissionv1.WebhookClientConfig{
+							Service: &admissionv1.ServiceReference{
 								Path: &pvcMutatingWebhookPath,
 							},
 						},
-						Rules: []admissionregistrationv1.RuleWithOperations{
+						Rules: []admissionv1.RuleWithOperations{
 							{
-								Operations: []admissionregistrationv1.OperationType{
-									admissionregistrationv1.Create,
+								Operations: []admissionv1.OperationType{
+									admissionv1.Create,
 								},
-								Rule: admissionregistrationv1.Rule{
+								Rule: admissionv1.Rule{
 									APIGroups:   []string{""},
 									APIVersions: []string{"v1"},
 									Resources:   []string{"persistentvolumeclaims"},
 								},
 							},
 						},
-						SideEffects:             &sideEffects,
-						AdmissionReviewVersions: []string{"v1", "v1beta1"},
+						SideEffects: &sideEffects,
 					},
 				},
 			},

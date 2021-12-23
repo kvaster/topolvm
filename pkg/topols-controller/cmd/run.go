@@ -23,7 +23,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-	// +kubebuilder:scaffold:imports
+	//+kubebuilder:scaffold:imports
 )
 
 var (
@@ -32,10 +32,10 @@ var (
 )
 
 func init() {
-	utilruntime.Must(topolsv1.AddToScheme(scheme))
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	// +kubebuilder:scaffold:scheme
+	utilruntime.Must(topolsv1.AddToScheme(scheme))
+	//+kubebuilder:scaffold:scheme
 }
 
 // Run builds and starts the manager with leader election.
@@ -77,7 +77,8 @@ func subMain() error {
 
 	// register controllers
 	nodecontroller := &controllers.NodeReconciler{
-		Client: mgr.GetClient(),
+		Client:           mgr.GetClient(),
+		SkipNodeFinalize: config.skipNodeFinalize,
 	}
 	if err := nodecontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Node")
@@ -93,7 +94,7 @@ func subMain() error {
 		return err
 	}
 
-	// +kubebuilder:scaffold:builder
+	//+kubebuilder:scaffold:builder
 
 	// Add health checker to manager
 	ctx := context.Background()

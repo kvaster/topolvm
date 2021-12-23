@@ -1,0 +1,14 @@
+{{- if .Values.controller.podDisruptionBudget.enabled }}
+---
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ template "topols.fullname" . }}-controller
+  namespace: {{ .Release.Namespace }}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: topols-controller
+---
+{{- end }}

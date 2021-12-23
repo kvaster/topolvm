@@ -25,6 +25,7 @@ type metricsExporter struct {
 	client.Client
 	nodeName       string
 	availableBytes *prometheus.GaugeVec
+	sizeBytes      *prometheus.GaugeVec
 	lvmc           lsm.Client
 }
 
@@ -37,15 +38,25 @@ func NewMetricsExporter(mgr manager.Manager, lvmc lsm.Client, nodeName string) m
 		Namespace:   metricsNamespace,
 		Subsystem:   "volumegroup",
 		Name:        "available_bytes",
-		Help:        "LVM VG available bytes under lvmd management",
+		Help:        "local storage available bytes under topols management",
 		ConstLabels: prometheus.Labels{"node": nodeName},
 	}, []string{"device_class"})
 	metrics.Registry.MustRegister(availableBytes)
+
+	sizeBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Namespace:   metricsNamespace,
+		Subsystem:   "volumegroup",
+		Name:        "size_bytes",
+		Help:        "local storage size bytes under topols management",
+		ConstLabels: prometheus.Labels{"node": nodeName},
+	}, []string{"device_class"})
+	metrics.Registry.MustRegister(sizeBytes)
 
 	return &metricsExporter{
 		Client:         mgr.GetClient(),
 		nodeName:       nodeName,
 		availableBytes: availableBytes,
+		sizeBytes:      sizeBytes,
 		lvmc:           lvmc,
 	}
 }
@@ -60,6 +71,7 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 				return
 			case met := <-metricsCh:
 				m.availableBytes.WithLabelValues(met.DeviceClass).Set(float64(met.TotalBytes - met.UsedBytes))
+				m.sizeBytes.WithLabelValues(met.DeviceClass).Set(float64(met.TotalBytes))
 			}
 		}
 	}()

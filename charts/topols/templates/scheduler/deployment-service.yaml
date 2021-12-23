@@ -1,0 +1,26 @@
+{{ if .Values.scheduler.enabled }}
+  {{ if eq (lower .Values.scheduler.type) "deployment" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "topols.fullname" . }}-scheduler
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "topols.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.scheduler.service.type }}
+  {{- with .Values.scheduler.service.clusterIP }}
+  clusterIP: {{ . }}
+  {{- end }}
+  selector:
+    app.kubernetes.io/name: {{ template "topols.fullname" . }}-scheduler
+  ports:
+    - protocol: TCP
+      port: {{ .Values.scheduler.options.listen.port }}
+      {{- with .Values.scheduler.service.nodePort}}
+      nodePort: {{ . }}
+      {{- end }}
+---
+  {{ end }}
+{{ end }}

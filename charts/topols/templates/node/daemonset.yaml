@@ -1,0 +1,123 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{ template "topols.fullname" . }}-node
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "topols.labels" . | nindent 4 }}
+spec:
+  {{- with .Values.node.updateStrategy }}
+  updateStrategy: {{ toYaml . | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: topols-node
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: topols-node
+      {{- if and .Values.node.metrics.enabled .Values.node.metrics.annotations }}
+      annotations: {{ toYaml .Values.node.metrics.annotations | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.node.priorityClassName }}
+      priorityClassName: {{ . }}
+      {{- end }}
+      serviceAccountName: {{ template "topols.fullname" . }}-node
+      containers:
+        - name: topols-node
+          image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
+          {{- with .Values.image.pullPolicy }}
+          imagePullPolicy: {{ . }}
+          {{- end }}
+          {{- with .Values.node.securityContext }}
+          securityContext: {{ toYaml . | nindent 12 }}
+          {{- end }}
+          command:
+            - /topols-node
+          ports:
+            - name: healthz
+              containerPort: 9808
+              protocol: TCP
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: healthz
+            failureThreshold: 3
+            initialDelaySeconds: 10
+            timeoutSeconds: 3
+            periodSeconds: 60
+          {{- with .Values.node.resources }}
+          resources: {{ toYaml . | nindent 12 }}
+          {{- end }}
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          {{- with .Values.node.volumeMounts.topolsNode }}
+          volumeMounts: {{ toYaml . | nindent 12 }}
+          {{- end }}
+
+        - name: csi-registrar
+          {{- if .Values.image.csi.nodeDriverRegistrar }}
+          image: {{ .Values.image.csi.nodeDriverRegistrar }}
+          {{- else }}
+          image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
+          {{- end }}
+          {{- with .Values.image.pullPolicy }}
+          imagePullPolicy: {{ . }}
+          {{- end }}
+          command:
+            - /csi-node-driver-registrar
+            - --csi-address=/run/topols/csi-topols.sock
+            - --kubelet-registration-path=/var/lib/kubelet/plugins/topols.kvaster.com/node/csi-topols.sock
+          livenessProbe:
+            exec:
+              command:
+              - /csi-node-driver-registrar
+              - --kubelet-registration-path=/var/lib/kubelet/plugins/topols.kvaster.com/node/csi-topols.sock
+              - --mode=kubelet-registration-probe
+            initialDelaySeconds: 3
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - /bin/sh
+                - -c
+                - rm -rf /registration/topols.kvaster.com /registration/topols.kvaster.com-reg.sock
+          volumeMounts:
+            - name: node-plugin-dir
+              mountPath: /run/topols
+            - name: registration-dir
+              mountPath: /registration
+
+        - name: liveness-probe
+          {{- if .Values.image.csi.livenessProbe }}
+          image: {{ .Values.image.csi.livenessProbe }}
+          {{- else }}
+          image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
+          {{- end }}
+          {{- with .Values.image.pullPolicy }}
+          imagePullPolicy: {{ . }}
+          {{- end }}
+          command:
+            - /livenessprobe
+            - --csi-address=/run/topols/csi-topols.sock
+          volumeMounts:
+            - name: node-plugin-dir
+              mountPath: /run/topols
+
+      {{- with .Values.node.volumes }}
+      volumes: {{ toYaml . | nindent 8 }}
+      {{- end }}
+
+      {{- with .Values.node.tolerations }}
+      tolerations: {{ toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.node.nodeSelector }}
+      nodeSelector: {{ toYaml . | nindent 8 }}
+      {{- end }}

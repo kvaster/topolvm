@@ -115,7 +115,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 		return nil, status.Errorf(codes.NotFound, "failed to find LV: %s", volumeID)
 	}
 
-	_, err = s.nodePublishFilesystemVolume(req, lv)
+	err = s.nodePublishFilesystemVolume(req, lv)
 
 	if err != nil {
 		if isInlineEphemeralVolumeReq {
@@ -123,7 +123,7 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 			// guarantee that NodePublishVolume will be called again, so if
 			// anything fails after the volume is created we need to attempt to
 			// clean up the LVM so we don't leak storage space.
-			if err = s.client.RemoveLV(volumeID, topols.DefaultDeviceClassName); err != nil {
+			if err := s.client.RemoveLV(volumeID, topols.DefaultDeviceClassName); err != nil {
 				return nil, status.Errorf(codes.Internal, "failed to remove LV for %s: %v", volumeID, err)
 			}
 		}
@@ -132,26 +132,29 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
-func (s *nodeService) nodePublishFilesystemVolume(req *csi.NodePublishVolumeRequest, lv *lsm.LogicalVolume) (*csi.NodePublishVolumeResponse, error) {
+func (s *nodeService) nodePublishFilesystemVolume(req *csi.NodePublishVolumeRequest, lv *lsm.LogicalVolume) error {
 	// Check request
 	mountOption := req.GetVolumeCapability().GetMount()
+	// we only support SINGLE_NODE_WRITER
 	accessMode := req.GetVolumeCapability().GetAccessMode().GetMode()
-	if accessMode != csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER {
+	switch accessMode {
+	case csi.VolumeCapability_AccessMode_SINGLE_NODE_WRITER:
+	default:
 		modeName := csi.VolumeCapability_AccessMode_Mode_name[int32(accessMode)]
-		return nil, status.Errorf(codes.FailedPrecondition, "unsupported access mode: %s", modeName)
+		return status.Errorf(codes.FailedPrecondition, "unsupported access mode: %s (%d)", modeName, accessMode)
 	}
 
 	sourcePath := s.client.GetPath(lv)
 
 	err := os.MkdirAll(req.GetTargetPath(), 0755)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", req.GetTargetPath(), err)
+		return status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", req.GetTargetPath(), err)
 	}
 	if err := s.mounter.Mount(sourcePath, req.GetTargetPath(), "", mountOption.GetMountFlags()); err != nil {
-		return nil, status.Errorf(codes.Internal, "mount failed: volume=%s, error=%v", req.GetVolumeId(), err)
+		return status.Errorf(codes.Internal, "mount failed: volume=%s, error=%v", req.GetVolumeId(), err)
 	}
 	if err := os.Chmod(req.GetTargetPath(), 0777|os.ModeSetgid); err != nil {
-		return nil, status.Errorf(codes.Internal, "chmod 2777 failed: target=%s, error=%v", req.GetTargetPath(), err)
+		return status.Errorf(codes.Internal, "chmod 2777 failed: target=%s, error=%v", req.GetTargetPath(), err)
 	}
 
 	nodeLogger.Info("NodePublishVolume(fs) succeeded",
@@ -159,7 +162,7 @@ func (s *nodeService) nodePublishFilesystemVolume(req *csi.NodePublishVolumeRequ
 		"target_path", req.GetTargetPath(),
 		"fstype", mountOption.FsType)
 
-	return &csi.NodePublishVolumeResponse{}, nil
+	return nil
 }
 
 func (s *nodeService) findVolumeByID(volumes []*lsm.LogicalVolume, name string) *lsm.LogicalVolume {

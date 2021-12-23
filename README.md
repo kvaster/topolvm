@@ -9,7 +9,7 @@ TopoLS runs in separate namespace and can be installed alongside with TopoLVM.
 
 TopoLS code is ready for testing, but documentation is not yet finished (even touched), so please wait for corrected docs.
 
-Last synced to TopoLVM code on 22 mar 2021 at commit 977eb046232a74fb4bcc099f8b58ce5f045eb75b.
+Last synced to TopoLVM code on 22 dec 2021 at commit d64dda32ef7f0d7bcbd5ad9d4e5ee5a0447380b1.
 
 TopoLS
 ======
@@ -18,12 +18,12 @@ TopoLS is a [CSI][] plugin using btrfs quotas for Kubernetes.
 It can be considered as a specific implementation of [local persistent volumes](https://kubernetes.io/docs/concepts/storage/volumes/#local) using CSI and LVM.
 
 - **Project Status**: Testing for production
-- **Conformed CSI version**: [1.3.0](https://github.com/container-storage-interface/spec/blob/v1.3.0/spec.md)
+- **Conformed CSI version**: [1.5.0](https://github.com/container-storage-interface/spec/blob/v1.5.0/spec.md)
 
 Supported environments
 ----------------------
 
-- Kubernetes: 1.20, 1.19
+- Kubernetes: 1.22, 1.21, 1.20
 - Node OS: Linux
 - Filesystems: btrfs
 
@@ -43,13 +43,13 @@ Programs
 This repository contains these programs:
 
 - `topols-controller`: CSI controller service.
-- `topols-scheduler`: A [scheduler extender](https://github.com/kubernetes/community/blob/master/contributors/design-proposals/scheduling/scheduler_extender.md) for TopoLS.
+- `topols-scheduler`: A [scheduler extender](https://github.com/kubernetes/design-proposals-archive/blob/main/scheduling/scheduler_extender.md) for TopoLS.
 - `topols-node`: CSI node service.
 
 Getting started
 ---------------
 
-For production deployments, see [deploy](deploy/) directory.
+For production deployments, see [deploy/README.md](./deploy/README.md).
 
 Docker images
 -------------

@@ -1,0 +1,4 @@
+device-classes:
+  - name: ssd
+    default: true
+    size: 1Ti

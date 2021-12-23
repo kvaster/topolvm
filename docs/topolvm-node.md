@@ -79,6 +79,15 @@ free space in the LVM volume group in bytes.
 | `node`         | The node resource name |
 | `device_class` | The device class name. |
 
+### `topolvm_volumegroup_size_bytes`
+
+`topolvm_volumegroup_size_bytes` is a Gauge that indicates the size of the LVM volume group in bytes.
+
+| Label          | Description            |
+| -------------- | ---------------------- |
+| `node`         | The node resource name |
+| `device_class` | The device class name. |
+
 Node resource
 -------------
 
@@ -94,12 +103,12 @@ to clean up PVCs and associated Pods bound to the node.
 Command-line flags
 ------------------
 
-| Name           | Type   | Default                         | Description                            |
-| -------------- | ------ | ------------------------------- | -------------------------------------- |
-| `csi-socket`   | string | `/run/topolvm/csi-topolvm.sock` | UNIX domain socket of `topolvm-node`.  |
-| `lvmd-socket`  | string | `/run/topolvm/lvmd.sock`        | UNIX domain socket of `lvmd` service.  |
-| `metrics-addr` | string | `:8080`                         | Bind address for the metrics endpoint. |
-| `nodename`     | string |                                 | `Node` resource name.                  |
+| Name                   | Type   | Default                         | Description                            |
+| ---------------------- | ------ | ------------------------------- | -------------------------------------- |
+| `csi-socket`           | string | `/run/topolvm/csi-topolvm.sock` | UNIX domain socket of `topolvm-node`.  |
+| `lvmd-socket`          | string | `/run/topolvm/lvmd.sock`        | UNIX domain socket of `lvmd` service.  |
+| `metrics-bind-address` | string | `:8080`                         | Bind address for the metrics endpoint. |
+| `nodename`             | string |                                 | `Node` resource name.                  |
 
 Environment variables
 ---------------------
