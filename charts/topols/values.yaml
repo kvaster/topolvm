@@ -354,7 +354,7 @@ controller:
 # storageClasses -- Whether to create storageclass(s)
 # ref: https://kubernetes.io/docs/concepts/storage/storage-classes/
 storageClasses:
-  - name: topols-provisioner  # Defines name of storage classe.
+  - name: topols  # Defines name of storage class.
     storageClass:
       # reclaimPolicy
       reclaimPolicy:  # Delete

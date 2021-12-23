@@ -19,7 +19,6 @@ metadata:
     {{- include "topols.labels" . | nindent 4 }}
 provisioner: topols.kvaster.com
 parameters:
-  "csi.storage.k8s.io/fstype": {{ $val.storageClass.fsType | quote }}
   {{- with $val.storageClass.additionalParameters }}
   {{- toYaml . | nindent 2 }}
   {{- end }}
