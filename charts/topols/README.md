@@ -152,7 +152,7 @@ You need to configure kube-scheduler to use topols-scheduler extender by referri
 | scheduler.updateStrategy | object | `{}` | Specify updateStrategy on the Deployment or DaemonSet. |
 | securityContext.runAsGroup | int | `10000` | Specify runAsGroup. |
 | securityContext.runAsUser | int | `10000` | Specify runAsUser. |
-| storageClasses | list | `[{"name":"topols-provisioner","storageClass":{"additionalParameters":{},"allowVolumeExpansion":true,"annotations":{},"isDefaultClass":false,"reclaimPolicy":null,"volumeBindingMode":"WaitForFirstConsumer"}}]` | Whether to create storageclass(s) ref: https://kubernetes.io/docs/concepts/storage/storage-classes/ |
+| storageClasses | list | `[{"name":"topols","storageClass":{"additionalParameters":{},"allowVolumeExpansion":true,"annotations":{},"isDefaultClass":false,"reclaimPolicy":null,"volumeBindingMode":"WaitForFirstConsumer"}}]` | Whether to create storageclass(s) ref: https://kubernetes.io/docs/concepts/storage/storage-classes/ |
 | webhook.caBundle | string | `nil` | Specify the certificate to be used for AdmissionWebhook. |
 | webhook.existingCertManagerIssuer | object | `{}` | Specify the cert-manager issuer to be used for AdmissionWebhook. |
 | webhook.podMutatingWebhook.enabled | bool | `true` | Enable Pod MutatingWebhook. |
