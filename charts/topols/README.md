@@ -120,13 +120,14 @@ You need to configure kube-scheduler to use topols-scheduler extender by referri
 | node.prometheus.podMonitor.namespace | string | `""` | Optional namespace in which to create PodMonitor. |
 | node.prometheus.podMonitor.relabelings | list | `[]` | RelabelConfigs to apply to samples before scraping. |
 | node.prometheus.podMonitor.scrapeTimeout | string | `""` | Scrape timeout. If not set, the Prometheus default scrape timeout is used. |
-| node.psp.allowedHostPaths | list | `[{"pathPrefix":"/var/lib/kubelet","readOnly":false},{"pathPrefix":"/run/topols","readOnly":false}]` | Specify allowedHostPaths. |
+| node.psp.allowedHostPaths | list | `[{"pathPrefix":"/var/lib/kubelet","readOnly":false},{"pathPrefix":"/run/topols","readOnly":false},{"pathPrefix":"/mnt/pool","readOnly":false}]` | Specify allowedHostPaths. |
 | node.resources | object | `{}` | Specify resources. |
+| node.securityContext.capabilities.add[0] | string | `"SYS_ADMIN"` |  |
 | node.securityContext.privileged | bool | `true` |  |
 | node.tolerations | list | `[]` | Specify tolerations. |
 | node.updateStrategy | object | `{}` | Specify updateStrategy. |
-| node.volumeMounts.topolsNode | list | `[{"mountPath":"/run/topols","name":"node-plugin-dir"},{"mountPath":"/var/lib/kubelet/pods","mountPropagation":"Bidirectional","name":"pod-volumes-dir"},{"mountPath":"/var/lib/kubelet/plugins/kubernetes.io/csi","mountPropagation":"Bidirectional","name":"csi-plugin-dir"}]` | Specify volumeMounts for topols-node container. |
-| node.volumes | list | `[{"hostPath":{"path":"/var/lib/kubelet/plugins_registry/","type":"Directory"},"name":"registration-dir"},{"hostPath":{"path":"/var/lib/kubelet/plugins/topols.kvaster.com/node","type":"DirectoryOrCreate"},"name":"node-plugin-dir"},{"hostPath":{"path":"/var/lib/kubelet/plugins/kubernetes.io/csi","type":"DirectoryOrCreate"},"name":"csi-plugin-dir"},{"hostPath":{"path":"/var/lib/kubelet/pods/","type":"DirectoryOrCreate"},"name":"pod-volumes-dir"}]` | Specify volumes. |
+| node.volumeMounts.topolsNode | list | `[{"mountPath":"/run/topols","name":"node-plugin-dir"},{"mountPath":"/var/lib/kubelet/pods","mountPropagation":"Bidirectional","name":"pod-volumes-dir"},{"mountPath":"/var/lib/kubelet/plugins/kubernetes.io/csi","mountPropagation":"Bidirectional","name":"csi-plugin-dir"},{"mountPath":"/mnt/pool","name":"mount-pool"}]` | Specify volumeMounts for topols-node container. |
+| node.volumes | list | `[{"hostPath":{"path":"/var/lib/kubelet/plugins_registry/","type":"Directory"},"name":"registration-dir"},{"hostPath":{"path":"/var/lib/kubelet/plugins/topols.kvaster.com/node","type":"DirectoryOrCreate"},"name":"node-plugin-dir"},{"hostPath":{"path":"/var/lib/kubelet/plugins/kubernetes.io/csi","type":"DirectoryOrCreate"},"name":"csi-plugin-dir"},{"hostPath":{"path":"/var/lib/kubelet/pods/","type":"DirectoryOrCreate"},"name":"pod-volumes-dir"},{"hostPath":{"path":"/mnt/pool","type":"DirectoryOrCreate"},"name":"mount-pool"}]` | Specify volumes. |
 | podSecurityPolicy.create | bool | `true` | Enable pod security policy. |
 | priorityClass.enabled | bool | `true` | Install priorityClass. |
 | priorityClass.name | string | `"topols"` | Specify priorityClass resource name. |
