@@ -216,6 +216,12 @@ $ kubectl label namespace topols-system topols.kvaster.com/webhook=ignore
 >
 > refs: https://github.com/helm/helm/issues/5153, https://github.com/helm/helm/issues/3503
 
+Install topols Helm Repo.
+
+```
+helm repo add topols https://kvaster.github.io/topols
+```
+
 Install Helm Chart using the configured values.yaml.
 
 ```sh
