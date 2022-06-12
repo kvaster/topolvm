@@ -19,7 +19,7 @@ jobs:
     - name: Install Helm
       uses: azure/setup-helm@v1
       with:
-        version: v3.8.0
+        version: v3.8.1
 
     # Add depending repository for helm to avoid the error below.
     # `Error: no repository definition for https://charts.jetstack.io`
@@ -29,7 +29,7 @@ jobs:
         helm repo add cert-manager https://charts.jetstack.io
 
     - name: Run chart-releaser
-      uses: helm/chart-releaser-action@v1.2.1
+      uses: helm/chart-releaser-action@v1.4.0
       with:
         config: .cr.yaml
       env:
