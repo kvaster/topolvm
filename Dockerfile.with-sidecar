@@ -1,4 +1,5 @@
 ARG IMAGE_PREFIX
+ARG TOPOLS_VERSION
 
 # Build Container
 FROM golang:1.18-alpine AS build-env
@@ -10,7 +11,7 @@ RUN apk add --update make curl bash \
     && make csi-sidecars
 
 # TopoLS container
-FROM ${IMAGE_PREFIX}topols:devel
+FROM ${IMAGE_PREFIX}topols:${TOPOLS_VERSION}
 
 # CSI sidecar
 COPY --from=build-env /workdir/build/csi-provisioner /csi-provisioner

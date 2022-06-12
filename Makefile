@@ -136,7 +136,7 @@ csi-sidecars: ## Build sidecar images.
 .PHONY: image
 image: ## Build topols images.
 	docker build --no-cache -t $(IMAGE_PREFIX)topols:devel --build-arg TOPOLS_VERSION=$(TOPOLS_VERSION) .
-	docker build --no-cache -t $(IMAGE_PREFIX)topols-with-sidecar:devel --build-arg IMAGE_PREFIX=$(IMAGE_PREFIX) -f Dockerfile.with-sidecar .
+	docker build --no-cache -t $(IMAGE_PREFIX)topols-with-sidecar:devel --build-arg IMAGE_PREFIX=$(IMAGE_PREFIX) --build-arg TOPOLS_VERSION=devel -f Dockerfile.with-sidecar .
 
 .PHONY: tag
 tag: ## Tag topols images.
