@@ -71,7 +71,7 @@ spec:
           configMap:
             name: {{ template "topols.fullname" . }}-scheduler-options
       {{- with .Values.scheduler.affinity }}
-      affinity: {{ toYaml . | nindent 8 }}
+      affinity: {{ tpl (toYaml .) $ | nindent 8 }}
       {{- end }}
       {{- with .Values.scheduler.tolerations }}
       tolerations: {{ toYaml . | nindent 8 }}

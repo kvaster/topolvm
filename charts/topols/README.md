@@ -23,8 +23,8 @@ helm repo update
 ## Dependencies
 
 | Repository | Name	| Version |
-| ---------- | ---- |---------|
-| https://charts.jetstack.io | cert-manager | 1.7.0   |
+| ---------- | ---- | ------- |
+| https://charts.jetstack.io | cert-manager | 1.7.0 |
 
 ## Quick start
 
@@ -82,7 +82,7 @@ You need to configure kube-scheduler to use topols-scheduler extender by referri
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | cert-manager.enabled | bool | `false` | Install cert-manager together. |
-| controller.affinity | object | `{"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"labelSelector":{"matchExpressions":[{"key":"app.kubernetes.io/name","operator":"In","values":["topols-controller"]}]},"topologyKey":"kubernetes.io/hostname"}]}}` | Specify affinity. |
+| controller.affinity | object | `{"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"labelSelector":{"matchExpressions":[{"key":"app.kubernetes.io/component","operator":"In","values":["controller"]},{"key":"app.kubernetes.io/name","operator":"In","values":["{{ include \"topols.name\" . }}"]}]},"topologyKey":"kubernetes.io/hostname"}]}}` | Specify affinity. |
 | controller.minReadySeconds | int | `nil` | Specify minReadySeconds. |
 | controller.nodeFinalize.skipped | bool | `false` | Skip automatic cleanup of PhysicalVolumeClaims when a Node is deleted. |
 | controller.nodeSelector | object | `{}` | Specify nodeSelector. |
@@ -110,9 +110,11 @@ You need to configure kube-scheduler to use topols-scheduler extender by referri
 | image.pullPolicy | string | `nil` | TopoLS image pullPolicy. |
 | image.repository | string | `"ghcr.io/kvaster/topols-with-sidecar"` | TopoLS |
 | image.tag | string | `{{ .Chart.AppVersion }}` | TopoLS image tag to use. |
+| node.kubeletWorkDirectory | string | `"/var/lib/kubelet"` | Specify the work directory of Kubelet on the host. For example, on microk8s it needs to be set to `/var/snap/microk8s/common/var/lib/kubelet` |
 | node.metrics.annotations | object | `{"prometheus.io/port":"metrics"}` | Annotations for Scrape used by Prometheus. |
 | node.metrics.enabled | bool | `true` | If true, enable scraping of metrics by Prometheus. |
 | node.nodeSelector | object | `{}` | Specify nodeSelector. |
+| node.poolPath | string | `"/mnt/pool"` |  |
 | node.priorityClassName | string | `nil` | Specify priorityClassName. |
 | node.prometheus.podMonitor.additionalLabels | object | `{}` | Additional labels that can be used so PodMonitor will be discovered by Prometheus. |
 | node.prometheus.podMonitor.enabled | bool | `false` | Set this to `true` to create PodMonitor for Prometheus operator. |
@@ -121,14 +123,14 @@ You need to configure kube-scheduler to use topols-scheduler extender by referri
 | node.prometheus.podMonitor.namespace | string | `""` | Optional namespace in which to create PodMonitor. |
 | node.prometheus.podMonitor.relabelings | list | `[]` | RelabelConfigs to apply to samples before scraping. |
 | node.prometheus.podMonitor.scrapeTimeout | string | `""` | Scrape timeout. If not set, the Prometheus default scrape timeout is used. |
-| node.psp.allowedHostPaths | list | `[{"pathPrefix":"/var/lib/kubelet","readOnly":false},{"pathPrefix":"/run/topols","readOnly":false},{"pathPrefix":"/mnt/pool","readOnly":false}]` | Specify allowedHostPaths. |
+| node.psp.allowedHostPaths | list | `[]` | Specify allowedHostPaths. |
 | node.resources | object | `{}` | Specify resources. |
 | node.securityContext.capabilities.add[0] | string | `"SYS_ADMIN"` |  |
 | node.securityContext.privileged | bool | `true` |  |
 | node.tolerations | list | `[]` | Specify tolerations. |
 | node.updateStrategy | object | `{}` | Specify updateStrategy. |
-| node.volumeMounts.topolsNode | list | `[{"mountPath":"/run/topols","name":"node-plugin-dir"},{"mountPath":"/var/lib/kubelet/pods","mountPropagation":"Bidirectional","name":"pod-volumes-dir"},{"mountPath":"/var/lib/kubelet/plugins/kubernetes.io/csi","mountPropagation":"Bidirectional","name":"csi-plugin-dir"},{"mountPath":"/mnt/pool","name":"mount-pool"}]` | Specify volumeMounts for topols-node container. |
-| node.volumes | list | `[{"hostPath":{"path":"/var/lib/kubelet/plugins_registry/","type":"Directory"},"name":"registration-dir"},{"hostPath":{"path":"/var/lib/kubelet/plugins/topols.kvaster.com/node","type":"DirectoryOrCreate"},"name":"node-plugin-dir"},{"hostPath":{"path":"/var/lib/kubelet/plugins/kubernetes.io/csi","type":"DirectoryOrCreate"},"name":"csi-plugin-dir"},{"hostPath":{"path":"/var/lib/kubelet/pods/","type":"DirectoryOrCreate"},"name":"pod-volumes-dir"},{"hostPath":{"path":"/mnt/pool","type":"DirectoryOrCreate"},"name":"mount-pool"}]` | Specify volumes. |
+| node.volumeMounts.topolsNode | list | `[]` | Specify volumeMounts for topols-node container. |
+| node.volumes | list | `[]` | Specify volumes. |
 | podSecurityPolicy.create | bool | `true` | Enable pod security policy. |
 | priorityClass.enabled | bool | `true` | Install priorityClass. |
 | priorityClass.name | string | `"topols"` | Specify priorityClass resource name. |
