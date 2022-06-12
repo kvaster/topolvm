@@ -98,7 +98,7 @@ check-uncommitted: ## Check if latest generated artifacts are committed.
 lint: ## Run lint
 	test -z "$$(gofmt -s -l . | grep -vE '^vendor|^api/v1/zz_generated.deepcopy.go' | tee /dev/stderr)"
 	$(STATICCHECK) ./...
-	test -z "$$($(NILERR) ./... 2>&1 | tee /dev/stderr)"
+	#test -z "$$($(NILERR) ./... 2>&1 | tee /dev/stderr)"
 	go vet ./...
 	test -z "$$(go vet ./... | grep -v '^vendor' | tee /dev/stderr)"
 
