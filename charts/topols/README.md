@@ -23,8 +23,8 @@ helm repo update
 ## Dependencies
 
 | Repository | Name	| Version |
-| ---------- | ---- | ------- |
-| https://charts.jetstack.io | cert-manager | 1.3.1 |
+| ---------- | ---- |---------|
+| https://charts.jetstack.io | cert-manager | 1.7.0   |
 
 ## Quick start
 
@@ -39,6 +39,7 @@ To work webhooks properly, add a label to the target namespace. We also recommen
 
 ```sh
 kubectl label namespace topols-system topols.kvaster.com/webhook=ignore
+kubectl label namespace kube-system topols.kvaster.com/webhook=ignore
 ```
 
 Install the chart with the release name `topols` into the namespace:
@@ -60,7 +61,7 @@ helm upgrade --namespace=topols-system -f values.yaml -i topols topols/topols
 Before installing the chart, you must first install the cert-manager CustomResourceDefinition resources.
 
 ```sh
-kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.3.1/cert-manager.crds.yaml
+kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.7.0/cert-manager.crds.yaml
 ```
 
 Set the `cert-manager.enabled=true` parameter when installing topols chart:

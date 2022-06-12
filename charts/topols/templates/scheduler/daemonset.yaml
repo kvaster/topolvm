@@ -16,13 +16,15 @@ spec:
   {{- end }}
   selector:
     matchLabels:
-      app.kubernetes.io/name: topols-scheduler
+      app.kubernetes.io/component: scheduler
+      {{ include "topols.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/scheduler/configmap.yaml") . | sha256sum }}
       labels:
-        app.kubernetes.io/name: topols-scheduler
+        app.kubernetes.io/component: scheduler
+        {{ include "topols.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.securityContext }}
       securityContext: {{ toYaml . | nindent 8 }}
@@ -34,6 +36,10 @@ spec:
       priorityClassName: {{ . }}
       {{- end }}
       serviceAccountName: {{ template "topols.fullname" . }}-scheduler
+      {{- with .Values.image.pullSecret}}
+      imagePullSecrets:
+      - name: {{ . }}
+      {{- end }}
       containers:
         - name: topols-scheduler
           image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
@@ -44,6 +50,11 @@ spec:
             - /topols-scheduler
             - --config=/etc/topols/scheduler-options.yaml
           livenessProbe:
+            httpGet:
+              host: {{ .Values.scheduler.options.listen.host }}
+              port: {{ .Values.scheduler.options.listen.port }}
+              path: /status
+          readinessProbe:
             httpGet:
               host: {{ .Values.scheduler.options.listen.host }}
               port: {{ .Values.scheduler.options.listen.port }}

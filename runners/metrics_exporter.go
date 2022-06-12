@@ -22,7 +22,7 @@ const metricsNamespace = "topols"
 var meLogger = ctrl.Log.WithName("runners").WithName("metrics_exporter")
 
 type metricsExporter struct {
-	client.Client
+	client         client.Client
 	nodeName       string
 	availableBytes *prometheus.GaugeVec
 	sizeBytes      *prometheus.GaugeVec
@@ -53,7 +53,7 @@ func NewMetricsExporter(mgr manager.Manager, lvmc lsm.Client, nodeName string) m
 	metrics.Registry.MustRegister(sizeBytes)
 
 	return &metricsExporter{
-		Client:         mgr.GetClient(),
+		client:         mgr.GetClient(),
 		nodeName:       nodeName,
 		availableBytes: availableBytes,
 		sizeBytes:      sizeBytes,
@@ -122,7 +122,7 @@ func (m *metricsExporter) updateNode(ctx context.Context, ch chan<- *lsm.DeviceC
 	}
 
 	var node corev1.Node
-	if err := m.Get(ctx, types.NamespacedName{Name: m.nodeName}, &node); err != nil {
+	if err := m.client.Get(ctx, types.NamespacedName{Name: m.nodeName}, &node); err != nil {
 		return err
 	}
 
@@ -167,7 +167,7 @@ func (m *metricsExporter) updateNode(ctx context.Context, ch chan<- *lsm.DeviceC
 		delete(node2.Annotations, k)
 	}
 
-	if err := m.Patch(ctx, node2, client.MergeFrom(&node)); err != nil {
+	if err := m.client.Patch(ctx, node2, client.MergeFrom(&node)); err != nil {
 		return err
 	}
 

@@ -3,13 +3,14 @@
 CONTROLLER_RUNTIME_VERSION=$(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_TOOLS_VERSION=$(shell awk '/sigs\.k8s\.io\/controller-tools/ {print substr($$2, 2)}' go.mod)
 CSI_VERSION=1.5.0
-PROTOC_VERSION=3.15.0
-HELM_VERSION=3.7.1
-HELM_DOCS_VERSION=1.5.0
-YQ_VERSION=4.14.1
+PROTOC_VERSION=3.19.3
+HELM_VERSION=3.8.0
+HELM_DOCS_VERSION=1.7.0
+YQ_VERSION=4.18.1
+GINKGO_VERSION := $(shell awk '/github.com\/onsi\/ginkgo/ {print substr($$2, 2)}' go.mod)
 
-SUDO=sudo
-CURL=curl -Lsf
+SUDO := sudo
+CURL := curl -sSLf
 BINDIR := $(shell pwd)/bin
 CONTROLLER_GEN := $(BINDIR)/controller-gen
 STATICCHECK := $(BINDIR)/staticcheck
@@ -28,7 +29,11 @@ BUILD_TARGET=hypertopols
 TOPOLS_VERSION ?= devel
 IMAGE_TAG ?= latest
 
-ENVTEST_KUBERNETES_VERSION=1.22
+ENVTEST_KUBERNETES_VERSION=1.23
+
+PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
+PROTOC_GEN_DOC_VERSION := $(shell awk '/github.com\/pseudomuto\/protoc-gen-doc/ {print substr($$2, 2)}' go.mod)
+PROTOC_GEN_GO_GRPC_VERSION := $(shell awk '/google.golang.org\/grpc\/cmd\/protoc-gen-go-grpc/ {print substr($$2, 2)}' go.mod)
 
 # Set the shell used to bash for better error handling.
 SHELL = /bin/bash
@@ -84,12 +89,14 @@ generate: $(PROTOBUF_GEN) ## Generate code containing DeepCopy, DeepCopyInto, an
 .PHONY: check-uncommitted
 check-uncommitted: ## Check if latest generated artifacts are committed.
 	$(MAKE) manifests
+	find . -name "*.pb.go" -delete
 	$(MAKE) generate
+	./bin/helm-docs -c charts/topols/
 	git diff --exit-code --name-only
 
 .PHONY: lint
 lint: ## Run lint
-	test -z "$$(gofmt -s -l . | grep -v '^vendor' | tee /dev/stderr)"
+	test -z "$$(gofmt -s -l . | grep -vE '^vendor|^api/v1/zz_generated.deepcopy.go' | tee /dev/stderr)"
 	$(STATICCHECK) ./...
 	test -z "$$($(NILERR) ./... 2>&1 | tee /dev/stderr)"
 	go vet ./...
@@ -112,7 +119,10 @@ clean: ## Clean working directory.
 ##@ Build
 
 .PHONY: build
-build: build/hypertopols csi-sidecars ## Build binaries.
+build: build-topols csi-sidecars ## Build binaries.
+
+.PHONY: build-topols
+build-topols: build/hypertopols
 
 build/hypertopols: $(GO_FILES)
 	mkdir -p build
@@ -126,7 +136,7 @@ csi-sidecars: ## Build sidecar images.
 .PHONY: image
 image: ## Build topols images.
 	docker build --no-cache -t $(IMAGE_PREFIX)topols:devel --build-arg TOPOLS_VERSION=$(TOPOLS_VERSION) .
-	docker build --no-cache -t $(IMAGE_PREFIX)topols-with-sidecar:devel --build-arg TOPOLS_VERSION=$(TOPOLS_VERSION) -f Dockerfile.with-sidecar .
+	docker build --no-cache -t $(IMAGE_PREFIX)topols-with-sidecar:devel --build-arg IMAGE_PREFIX=$(IMAGE_PREFIX) -f Dockerfile.with-sidecar .
 
 .PHONY: tag
 tag: ## Tag topols images.
@@ -142,26 +152,25 @@ push:
 
 .PHONY: tools
 tools: ## Install development tools.
-	GOBIN=$(BINDIR) go install golang.org/x/tools/cmd/goimports@latest
 	GOBIN=$(BINDIR) go install honnef.co/go/tools/cmd/staticcheck@latest
 	GOBIN=$(BINDIR) go install github.com/gostaticanalysis/nilerr/cmd/nilerr@latest
 	# Follow the official documentation to install the `latest` version, because explicitly specifying the version will get an error.
 	GOBIN=$(BINDIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 	GOBIN=$(BINDIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION)
 
-	curl -sfL -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip
+	$(CURL) -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v$(PROTOC_VERSION)/protoc-$(PROTOC_VERSION)-linux-x86_64.zip
 	unzip -o protoc.zip bin/protoc 'include/*'
 	rm -f protoc.zip
-	GOBIN=$(BINDIR) go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
-	GOBIN=$(BINDIR) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-	GOBIN=$(BINDIR) go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@latest
+	GOBIN=$(BINDIR) go install google.golang.org/protobuf/cmd/protoc-gen-go@v$(PROTOC_GEN_GO_VERSION)
+	GOBIN=$(BINDIR) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v$(PROTOC_GEN_GO_GRPC_VERSION)
+	GOBIN=$(BINDIR) go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v$(PROTOC_GEN_DOC_VERSION)
 
-	GOBIN=$(BINDIR) go install github.com/onsi/ginkgo/ginkgo@latest
+	GOBIN=$(BINDIR) go install github.com/onsi/ginkgo/ginkgo@v$(GINKGO_VERSION)
 
 	GOBIN=$(BINDIR) go install github.com/norwoodj/helm-docs/cmd/helm-docs@v$(HELM_DOCS_VERSION)
-	curl -L -sS https://get.helm.sh/helm-v$(HELM_VERSION)-linux-amd64.tar.gz \
+	$(CURL) https://get.helm.sh/helm-v$(HELM_VERSION)-linux-amd64.tar.gz \
 		| tar xvz -C $(BINDIR) --strip-components 1 linux-amd64/helm
-	wget https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64 -O $(BINDIR)/yq \
+	$(CURL) https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64 -o $(BINDIR)/yq \
 		&& chmod +x $(BINDIR)/yq
 
 .PHONY: setup
@@ -169,17 +178,3 @@ setup: ## Setup local environment.
 	$(SUDO) apt-get update
 	$(SUDO) apt-get -y install --no-install-recommends $(PACKAGES)
 	$(MAKE) tools
-
-# go-get-tool will 'go get' any package $2 and install it to $1.
-PROJECT_DIR := $(shell dirname $(abspath $(lastword $(MAKEFILE_LIST))))
-define go-get-tool
-@[ -f $(1) ] || { \
-set -e ;\
-TMP_DIR=$$(mktemp -d) ;\
-cd $$TMP_DIR ;\
-go mod init tmp ;\
-echo "Downloading $(2)" ;\
-GOBIN=$(PROJECT_DIR)/bin go get $(2) ;\
-rm -rf $$TMP_DIR ;\
-}
-endef

@@ -1,5 +1,5 @@
 # Build Container
-FROM golang:1.17-alpine AS build-env
+FROM golang:1.18-alpine AS build-env
 
 # Get argment
 ARG TOPOLS_VERSION
@@ -9,7 +9,7 @@ WORKDIR /workdir
 
 RUN touch csi/*.go docs/*.md \
     && apk add --update make curl bash \
-    && make build TOPOLS_VERSION=${TOPOLS_VERSION}
+    && make build-topols TOPOLS_VERSION=${TOPOLS_VERSION}
 
 # TopoLS container
 FROM alpine:edge

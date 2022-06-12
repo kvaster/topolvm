@@ -9,6 +9,9 @@ image:
   # image.pullPolicy -- TopoLS image pullPolicy.
   pullPolicy:  # Always
 
+  # image.pullSecret -- image pull secret name
+  #pullSecret:
+
   csi:
     # image.csi.nodeDriverRegistrar -- Specify csi-node-driver-registrar: image.
     # If not specified, `ghcr.io/kvaster/topols-with-sidecar:{{ .Values.image.tag }}` will be used.
@@ -122,6 +125,10 @@ scheduler:
 
 # CSI node service
 node:
+  # node.kubeletWorkDirectory -- Specify the work directory of Kubelet on the host.
+  # For example, on microk8s it needs to be set to `/var/snap/microk8s/common/var/lib/kubelet`
+  kubeletWorkDirectory: /var/lib/kubelet
+
   # node.securityContext. -- Container securityContext.
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
   securityContext:
@@ -191,52 +198,54 @@ node:
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
   nodeSelector: {}
 
+  poolPath: /mnt/pool
+
   # node.volumes -- Specify volumes.
-  volumes:
-    - name: registration-dir
-      hostPath:
-        path: /var/lib/kubelet/plugins_registry/
-        type: Directory
-    - name: node-plugin-dir
-      hostPath:
-        path: /var/lib/kubelet/plugins/topols.kvaster.com/node
-        type: DirectoryOrCreate
-    - name: csi-plugin-dir
-      hostPath:
-        path: /var/lib/kubelet/plugins/kubernetes.io/csi
-        type: DirectoryOrCreate
-    - name: pod-volumes-dir
-      hostPath:
-        path: /var/lib/kubelet/pods/
-        type: DirectoryOrCreate
-    - name: mount-pool
-      hostPath:
-        path: /mnt/pool
-        type: DirectoryOrCreate
+  volumes: []
+  #  - name: registration-dir
+  #    hostPath:
+  #      path: /var/lib/kubelet/plugins_registry/
+  #      type: Directory
+  #  - name: node-plugin-dir
+  #    hostPath:
+  #      path: /var/lib/kubelet/plugins/topols.kvaster.com/node
+  #      type: DirectoryOrCreate
+  #  - name: csi-plugin-dir
+  #    hostPath:
+  #      path: /var/lib/kubelet/plugins/kubernetes.io/csi
+  #      type: DirectoryOrCreate
+  #  - name: pod-volumes-dir
+  #    hostPath:
+  #      path: /var/lib/kubelet/pods/
+  #      type: DirectoryOrCreate
+  #  - name: mount-pool
+  #    hostPath:
+  #      path: /mnt/pool
+  #      type: DirectoryOrCreate
 
   volumeMounts:
     # node.volumeMounts.topolsNode -- Specify volumeMounts for topols-node container.
-    topolsNode:
-      - name: node-plugin-dir
-        mountPath: /run/topols
-      - name: pod-volumes-dir
-        mountPath: /var/lib/kubelet/pods
-        mountPropagation: "Bidirectional"
-      - name: csi-plugin-dir
-        mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi
-        mountPropagation: "Bidirectional"
-      - name: mount-pool
-        mountPath: /mnt/pool
+    topolsNode: []
+    #  - name: node-plugin-dir
+    #    mountPath: /run/topols
+    #  - name: pod-volumes-dir
+    #    mountPath: /var/lib/kubelet/pods
+    #    mountPropagation: "Bidirectional"
+    #  - name: csi-plugin-dir
+    #    mountPath: /var/lib/kubelet/plugins/kubernetes.io/csi
+    #    mountPropagation: "Bidirectional"
+    #  - name: mount-pool
+    #    mountPath: /mnt/pool
 
   psp:
     # node.psp.allowedHostPaths -- Specify allowedHostPaths.
-    allowedHostPaths:
-      - pathPrefix: "/var/lib/kubelet"
-        readOnly: false
-      - pathPrefix: "/run/topols"
-        readOnly: false
-      - pathPrefix: "/mnt/pool"
-        readOnly: false
+    allowedHostPaths: []
+    #  - pathPrefix: "/var/lib/kubelet"
+    #    readOnly: false
+    #  - pathPrefix: "/run/topols"
+    #    readOnly: false
+    #  - pathPrefix: "/mnt/pool"
+    #    readOnly: false
 
   # node.updateStrategy -- Specify updateStrategy.
   updateStrategy: {}
@@ -323,15 +332,19 @@ controller:
 
   # controller.affinity -- Specify affinity.
   ## ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity
-  affinity:
+  affinity: |
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:
         - labelSelector:
             matchExpressions:
+              - key: app.kubernetes.io/component
+                operator: In
+                values:
+                  - controller
               - key: app.kubernetes.io/name
                 operator: In
                 values:
-                  - topols-controller
+                  - {{ include "topols.name" . }}
           topologyKey: kubernetes.io/hostname
 
   # controller.tolerations -- Specify tolerations.

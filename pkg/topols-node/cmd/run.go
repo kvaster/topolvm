@@ -57,7 +57,7 @@ func subMain() error {
 
 	lvmc, err := lsm.New(config.poolPath)
 	if err != nil {
-		setupLog.Error(err, "unable to create lvm client")
+		setupLog.Error(err, "unable to create ls client")
 		return err
 	}
 	if err := mgr.Add(lvmc); err != nil {

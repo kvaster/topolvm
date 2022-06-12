@@ -3,6 +3,7 @@ package hook
 import (
 	"context"
 	"encoding/json"
+	"github.com/kvaster/topols/getter"
 	"net/http"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
@@ -17,20 +18,25 @@ import (
 )
 
 type persistentVolumeClaimMutator struct {
-	client  client.Client
+	getter  *getter.RetryMissingGetter
 	decoder *admission.Decoder
 }
 
 // PVCMutator creates a mutating webhook for PVCs.
-func PVCMutator(c client.Client, dec *admission.Decoder) http.Handler {
-	return &webhook.Admission{Handler: persistentVolumeClaimMutator{c, dec}}
+func PVCMutator(r client.Reader, apiReader client.Reader, dec *admission.Decoder) http.Handler {
+	return &webhook.Admission{
+		Handler: &persistentVolumeClaimMutator{
+			getter:  getter.NewRetryMissingGetter(r, apiReader),
+			decoder: dec,
+		},
+	}
 }
 
 //+kubebuilder:webhook:failurePolicy=fail,matchPolicy=equivalent,groups=core,resources=persistentvolumeclaims,verbs=create,versions=v1,name=pvc-hook.topols.kvaster.com,path=/pvc/mutate,mutating=true,sideEffects=none,admissionReviewVersions={v1,v1beta1}
 //+kubebuilder:rbac:groups=storage.k8s.io,resources=storageclasses,verbs=get;list;watch
 
 // Handle implements admission.Handler interface.
-func (m persistentVolumeClaimMutator) Handle(ctx context.Context, req admission.Request) admission.Response {
+func (m *persistentVolumeClaimMutator) Handle(ctx context.Context, req admission.Request) admission.Response {
 	pvc := &corev1.PersistentVolumeClaim{}
 	err := m.decoder.Decode(req, pvc)
 	if err != nil {
@@ -43,7 +49,7 @@ func (m persistentVolumeClaimMutator) Handle(ctx context.Context, req admission.
 	}
 
 	var sc storagev1.StorageClass
-	err = m.client.Get(ctx, types.NamespacedName{Name: *pvc.Spec.StorageClassName}, &sc)
+	err = m.getter.Get(ctx, types.NamespacedName{Name: *pvc.Spec.StorageClassName}, &sc)
 	switch {
 	case err == nil:
 	case apierrors.IsNotFound(err):

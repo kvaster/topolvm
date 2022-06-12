@@ -1,5 +1,4 @@
-{{ if .Values.scheduler.enabled }}
-  {{ if eq (lower .Values.scheduler.type) "deployment" }}
+{{ if and .Values.scheduler.enabled (eq (lower .Values.scheduler.type) "deployment") }}
 ---
 apiVersion: v1
 kind: Service
@@ -14,7 +13,8 @@ spec:
   clusterIP: {{ . }}
   {{- end }}
   selector:
-    app.kubernetes.io/name: {{ template "topols.fullname" . }}-scheduler
+    app.kubernetes.io/component: scheduler
+    {{ include "topols.selectorLabels" . | nindent 4 }}
   ports:
     - protocol: TCP
       port: {{ .Values.scheduler.options.listen.port }}
@@ -22,5 +22,4 @@ spec:
       nodePort: {{ . }}
       {{- end }}
 ---
-  {{ end }}
 {{ end }}

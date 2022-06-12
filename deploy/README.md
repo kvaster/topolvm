@@ -30,7 +30,7 @@ Follow the [documentation](https://docs.cert-manager.io/en/latest/getting-starte
 Before installing the chart, you must first install the cert-manager CustomResourceDefinition resources.
 
 ```sh
-kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.3.1/cert-manager.crds.yaml
+kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.7.0/cert-manager.crds.yaml
 ```
 
 Set the `cert-manager.enabled=true` in the Helm Chart values.
@@ -43,7 +43,6 @@ cert-manager:
 ### OPTIONAL: Prepare the certificate without cert-manager
 
 You can prepare the certificate manually without `cert-manager`.
-When doing so, do not apply [certificates.yaml](./manifests/base/certificates.yaml).
 
 1. Prepare PEM encoded self-signed certificate and key files.  
    The certificate must be valid for hostname `controller.topols-system.svc`.
@@ -51,7 +50,7 @@ When doing so, do not apply [certificates.yaml](./manifests/base/certificates.ya
 3. Create Secret in `topols-system` namespace as follows:
 
     ```console
-    kubectl -n topols-system create secret tls mutatingwebhook \
+    kubectl -n topols-system create secret tls topols-mutatingwebhook \
         --cert=<CERTIFICATE FILE> --key=<KEY FILE>
     ```
 
@@ -141,21 +140,21 @@ scheduler:
 
 Besides, the scoring weight can be passed to kube-scheduler via [scheduler-config.yaml](./scheduler-config/scheduler-config.yaml). Almost all scoring algorithms in kube-scheduler are weighted as `"weight": 1`. So if you want to give a priority to the scoring by `topols-scheduler`, you have to set the weight as a value larger than one like as follows:
 ```yaml
-apiVersion: kubescheduler.config.k8s.io/v1beta1
+apiVersion: kubescheduler.config.k8s.io/v1beta2
 kind: KubeSchedulerConfiguration
 leaderElection:
-   leaderElect: true
+  leaderElect: true
 clientConnection:
-   kubeconfig: /etc/kubernetes/scheduler.conf
+  kubeconfig: /etc/kubernetes/scheduler.conf
 extenders:
-   - urlPrefix: http://127.0.0.1:9251
-     filterVerb: predicate
-     prioritizeVerb: prioritize
-     nodeCacheCapable: false
-     weight: 100    # EDIT THIS FIELD #
-     managedResources:
-        - name: topols.kvaster.com/capacity
-          ignoredByScheduler: true
+- urlPrefix: http://127.0.0.1:9251
+  filterVerb: predicate
+  prioritizeVerb: prioritize
+  nodeCacheCapable: false
+  weight: 100    # EDIT THIS FIELD #
+  managedResources:
+  - name: topols.kvaster.com/capacity
+    ignoredByScheduler: true
 ```
 
 ### Storage Capacity Tracking
@@ -248,7 +247,7 @@ apiVersion: kubeadm.k8s.io/v1
 kind: ClusterConfiguration
 metadata:
   name: config
-kubernetesVersion: v1.20.1
+kubernetesVersion: v1.24.1
 scheduler:
   extraVolumes:
     - name: "scheduler-config"

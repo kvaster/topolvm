@@ -9,7 +9,7 @@ TopoLS runs in separate namespace and can be installed alongside with TopoLVM.
 
 TopoLS code is ready for testing, but documentation is not yet finished (even touched), so please wait for corrected docs.
 
-Last synced to TopoLVM code on 22 dec 2021 at commit d64dda32ef7f0d7bcbd5ad9d4e5ee5a0447380b1.
+Last synced to TopoLVM code on 16 Jun 2022 at commit 7b0c59f2944dc5343aa0e71cb226db53ad2f96ea.
 
 TopoLS
 ======
@@ -23,7 +23,7 @@ It can be considered as a specific implementation of [local persistent volumes](
 Supported environments
 ----------------------
 
-- Kubernetes: 1.22, 1.21, 1.20
+- Kubernetes: 1.23, 1.22, 1.21
 - Node OS: Linux
 - Filesystems: btrfs
 
@@ -31,7 +31,7 @@ Features
 --------
 
 - [Dynamic provisioning](https://kubernetes-csi.github.io/docs/external-provisioner.html): Volumes are created dynamically when `PersistentVolumeClaim` objects are created.
-- [Ephemeral inline volume](https://kubernetes.io/docs/concepts/storage/volumes/#csi-ephemeral-volumes): Volumes can be directly embedded in the Pod specification.
+- [Ephemeral inline volume](https://kubernetes.io/docs/concepts/storage/volumes/#csi-ephemeral-volumes) (**deprecated**): Volumes can be directly embedded in the Pod specification.
 - [Topology](https://kubernetes-csi.github.io/docs/topology.html): TopoLS uses CSI topology feature to schedule Pod to Node where free space on btrfs volume exists.
 - Extended scheduler: TopoLS extends the general Pod scheduler to prioritize Nodes having larger storage capacity.
 - Volume metrics: Usage stats are exported as Prometheus metrics from `kubelet`.
