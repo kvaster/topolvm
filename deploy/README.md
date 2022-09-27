@@ -7,6 +7,7 @@ Each of these steps are shown in depth in the following sections:
 1. Determine how topols-scheduler to be run:
    - If you run with a managed control plane (such as GKE, AKS, etc), `topols-scheduler` should be deployed as Deployment and Service
    - `topols-scheduler` should otherwise be deployed as DaemonSet in unmanaged (i.e. bare metal) deployments
+   - Enable [Storage Capacity Tracking](https://kubernetes.io/docs/concepts/storage/storage-capacity/) mode instead of using `topols-scheduler`
 1. Prepare StorageClasses for TopoLS.
 1. Install TopoLS using helm as appropriate to your installation.
 1. Configure `kube-scheduler` to use `topols-scheduler`.
@@ -117,13 +118,16 @@ Then edit `urlPrefix` in [scheduler-config.yaml](./scheduler-config/scheduler-co
 #### OPTIONAL: tune the node scoring
 
 The node scoring for Pod scheduling can be fine-tuned with the following two ways:
+
 1. Adjust `weights` parameters in the scoring expression
 2. Change the weight for the node scoring against the default by kube-scheduler
 
 The scoring expression in `topols-scheduler` is as follows:
+
 ```
 avg_by_weight((1 - requested / capacity) * 10)
 ```
+
 For example, if a node has the two different type of disks - small sdd for fast data and big hdd for big data,
 `topols-scheduler` can be adjusted for ssd score to have more weight, cause balanced ssd usage is more important
 due to smaller capacity. Weight can be specified for each device-class in the Helm Chart values:
@@ -191,16 +195,16 @@ You need to create [StorageClasses](https://kubernetes.io/docs/concepts/storage/
 The Helm chart creates a StorageClasses by default with the following configuration.
 You can edit the Helm Chart values as needed.
 
-   ```yaml
-   <snip>
-   storageClasses:
-     - name: topols-provisioner
-       storageClass:
-         isDefaultClass: false
-         volumeBindingMode: WaitForFirstConsumer
-         allowVolumeExpansion: true
-   <snip>
-   ```
+```yaml
+<snip>
+storageClasses:
+  - name: topols-provisioner
+    storageClass:
+      isDefaultClass: false
+      volumeBindingMode: WaitForFirstConsumer
+      allowVolumeExpansion: true
+<snip>
+```
 
 ## Install Helm Chart
 
@@ -247,7 +251,7 @@ apiVersion: kubeadm.k8s.io/v1
 kind: ClusterConfiguration
 metadata:
   name: config
-kubernetesVersion: v1.24.1
+kubernetesVersion: v1.24.5
 scheduler:
   extraVolumes:
     - name: "scheduler-config"
@@ -272,26 +276,26 @@ This may be done automatically using kubeadm or manually:
 
 The changes to `/etc/kubernetes/manifests/kube-scheduler.yaml` that are affected by this are as follows:
 
-1. Add a line to the `command` arguments array such as ```- --config=/etc/kubernetes/scheduler-config.yaml```.
+1. Add a line to the `command` arguments array such as `- --config=/etc/kubernetes/scheduler-config.yaml`.
    Note that this is the location of the file **after** it is mapped to the `kube-scheduler` container, not where it exists on the node local filesystem.
 2. Add a volume mapping to the location of the configuration on your node:
 
-    ```yaml
-      spec.volumes:
-      - hostPath:
-          path: /etc/kubernetes/scheduler-config.yaml     # absolute path to ./scheduler-config.yaml file
-          type: FileOrCreate
-        name: scheduler-config
-    ```
+   ```yaml
+     spec.volumes:
+     - hostPath:
+         path: /etc/kubernetes/scheduler-config.yaml     # absolute path to ./scheduler-config.yaml file
+         type: FileOrCreate
+       name: scheduler-config
+   ```
 
 3. Add a `volumeMount` for the scheduler container:
 
-    ```yaml
-      spec.containers.volumeMounts:
-      - mountPath: /etc/kubernetes/scheduler-config.yaml
-        name: scheduler-config
-        readOnly: true
-    ```
+   ```yaml
+     spec.containers.volumeMounts:
+     - mountPath: /etc/kubernetes/scheduler-config.yaml
+       name: scheduler-config
+       readOnly: true
+   ```
 
 ## Configure available storage on each node
 
@@ -314,4 +318,34 @@ device-classes:
     size: 100Gi
   - name: hdd
     size: 1Ti
+```
+
+
+## How to use snapshot
+
+To create VolumeSnapshots, please follow [snapshot controller deployment](https://github.com/kubernetes-csi/external-snapshotter#usage) to install snapshot controller. Do this once per cluster.
+Refer to the [kubernetes guide](https://kubernetes.io/docs/concepts/storage/volume-snapshots/) for VolumeSnapshot creation.
+
+`VolumeSnapshotClass` example:
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshotClass
+metadata:
+  name: csi-topols-snapclass
+driver: topols.kvaster.com
+deletionPolicy: Delete
+```
+
+`VolumeSnapshot` example:
+
+```yaml
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: new-snapshot
+spec:
+  volumeSnapshotClassName: csi-topols-snapclass
+  source:
+    persistentVolumeClaimName: snapshot-pvc
 ```

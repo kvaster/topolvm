@@ -15,19 +15,23 @@ image:
   csi:
     # image.csi.nodeDriverRegistrar -- Specify csi-node-driver-registrar: image.
     # If not specified, `ghcr.io/kvaster/topols-with-sidecar:{{ .Values.image.tag }}` will be used.
-    nodeDriverRegistrar:  # k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.4.0
+    nodeDriverRegistrar:  # k8s.gcr.io/sig-storage/csi-node-driver-registrar:v2.5.1
 
     # image.csi.csiProvisioner -- Specify csi-provisioner image.
     # If not specified, `ghcr.io/kvaster/topols-with-sidecar:{{ .Values.image.tag }}` will be used.
-    csiProvisioner:  # k8s.gcr.io/sig-storage/csi-provisioner:v3.0.0
+    csiProvisioner:  # k8s.gcr.io/sig-storage/csi-provisioner:v3.2.1
 
     # image.csi.csiResizer -- Specify csi-resizer image.
     # If not specified, `ghcr.io/kvaster/topols-with-sidecar:{{ .Values.image.tag }}` will be used.
-    csiResizer:  # k8s.gcr.io/sig-storage/csi-resizer:v1.3.0
+    csiResizer:  # k8s.gcr.io/sig-storage/csi-resizer:v1.6.0
+
+    # image.csi.csiSnapshotter -- Specify csi-snapshot image.
+    # If not specified, `ghcr.io/topolvm/topolvm-with-sidecar:{{ .Values.image.tag }}` will be used.
+    csiSnapshotter:  # k8s.gcr.io/sig-storage/csi-snapshotter:v6.0.1
 
     # image.csi.livenessProbe -- Specify livenessprobe image.
     # If not specified, `ghcr.io/kvaster/topols-with-sidecar:{{ .Values.image.tag }}` will be used.
-    livenessProbe:  # k8s.gcr.io/sig-storage/livenessprobe:v2.5.0
+    livenessProbe:  # k8s.gcr.io/sig-storage/livenessprobe:v2.7.0
 
 # A scheduler extender for TopoLS
 scheduler:
@@ -74,6 +78,8 @@ scheduler:
           - matchExpressions:
               - key: node-role.kubernetes.io/control-plane
                 operator: Exists
+          # node-role.kubernetes.io/master label is not used in k8s 1.24+.
+          # TODO: remove this when minimum supported version becomes 1.24.
           - matchExpressions:
               - key: node-role.kubernetes.io/master
                 operator: Exists
@@ -89,6 +95,9 @@ scheduler:
       operator: Exists
     - key: node-role.kubernetes.io/control-plane
       effect: NoSchedule
+    # node-role.kubernetes.io/master taint will not be used in k8s 1.25+.
+    # cf. https://github.com/kubernetes/enhancements/blob/master/keps/sig-cluster-lifecycle/kubeadm/2067-rename-master-label-taint/README.md
+    # TODO: remove this when minimum supported version becomes 1.25.
     - key: node-role.kubernetes.io/master
       effect: NoSchedule
 
@@ -394,9 +403,6 @@ webhook:
   podMutatingWebhook:
     # webhook.podMutatingWebhook.enabled -- Enable Pod MutatingWebhook.
     enabled: true
-  pvcMutatingWebhook:
-    # webhook.pvcMutatingWebhook.enabled -- Enable PVC MutatingWebhook.
-    enabled: true
 
 # Container Security Context
 # ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
@@ -423,3 +429,8 @@ priorityClass:
   name: topols
   # priorityClass.value  -- Specify priorityClass value.
   value: 1000000
+
+snapshot:
+  # snapshot.enabled -- Turn on the snapshot feature.
+  enabled: true
+

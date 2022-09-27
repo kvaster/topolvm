@@ -36,17 +36,15 @@ var testEnv *envtest.Environment
 var testCtx, testCancel = context.WithCancel(context.Background())
 
 const (
+	emptyStorageClassName                      = ""
 	topolsProvisionerStorageClassName          = "topols-provisioner"
 	topolsProvisioner2StorageClassName         = "topols-provisioner2"
 	topolsProvisioner3StorageClassName         = "topols-provisioner3"
 	topolsProvisionerImmediateStorageClassName = "topols-provisioner-immediate"
 	hostLocalStorageClassName                  = "host-local"
 	missingStorageClassName                    = "missing-storageclass"
-)
 
-var (
 	podMutatingWebhookPath = "/pod/mutate"
-	pvcMutatingWebhookPath = "/pvc/mutate"
 )
 
 func strPtr(s string) *string { return &s }
@@ -149,7 +147,7 @@ var _ = BeforeSuite(func() {
 						FailurePolicy:           &failPolicy,
 						ClientConfig: admissionv1.WebhookClientConfig{
 							Service: &admissionv1.ServiceReference{
-								Path: &podMutatingWebhookPath,
+								Path: strPtr(podMutatingWebhookPath),
 							},
 						},
 						Rules: []admissionv1.RuleWithOperations{
@@ -161,29 +159,6 @@ var _ = BeforeSuite(func() {
 									APIGroups:   []string{""},
 									APIVersions: []string{"v1"},
 									Resources:   []string{"pods"},
-								},
-							},
-						},
-						SideEffects: &sideEffects,
-					},
-					{
-						Name:                    "pvc-hook.topols.kvaster.com",
-						AdmissionReviewVersions: []string{"v1", "v1beta1"},
-						FailurePolicy:           &failPolicy,
-						ClientConfig: admissionv1.WebhookClientConfig{
-							Service: &admissionv1.ServiceReference{
-								Path: &pvcMutatingWebhookPath,
-							},
-						},
-						Rules: []admissionv1.RuleWithOperations{
-							{
-								Operations: []admissionv1.OperationType{
-									admissionv1.Create,
-								},
-								Rule: admissionv1.Rule{
-									APIGroups:   []string{""},
-									APIVersions: []string{"v1"},
-									Resources:   []string{"persistentvolumeclaims"},
 								},
 							},
 						},
@@ -230,7 +205,6 @@ var _ = BeforeSuite(func() {
 	By("setting up resources")
 	setupCommonResources()
 	setupMutatePodResources()
-	setupMutatePVCResources()
 }, 60)
 
 var _ = AfterSuite(func() {

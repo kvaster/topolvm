@@ -3,7 +3,6 @@ package driver
 import (
 	"context"
 	"os"
-	"strconv"
 	"sync"
 
 	"github.com/kvaster/topols"
@@ -15,10 +14,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	mountutil "k8s.io/mount-utils"
-)
-
-const (
-	ephVolConKey = "csi.storage.k8s.io/ephemeral"
 )
 
 var nodeLogger = ctrl.Log.WithName("driver").WithName("node")
@@ -69,47 +64,20 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if !isFsVol {
 		return nil, status.Errorf(codes.InvalidArgument, "no supported volume capability: %v", req.GetVolumeCapability())
 	}
-	isInlineEphemeralVolumeReq := volumeContext[ephVolConKey] == "true"
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	var lv *lsm.LogicalVolume
 	var err error
-	if isInlineEphemeralVolumeReq {
-		lv, err = s.getLvFromContext(ctx, topols.DefaultDeviceClassName, volumeID)
-		if err != nil {
-			return nil, err
-		}
-		// Need to check if the LV already exists so this block is idempotent.
-		if lv == nil {
-			var reqBytes uint64 = topols.DefaultSize
-			if sizeStr, ok := volumeContext[topols.EphemeralVolumeSizeKey]; ok {
-				var err error
-				reqBytes, err = strconv.ParseUint(sizeStr, 10, 64)
-				if err != nil {
-					return nil, status.Errorf(codes.InvalidArgument, "Invalid size: %s", sizeStr)
-				}
-			}
-			nodeLogger.Info("Processing ephemeral inline volume request", "reqBytes", reqBytes)
-			_, err = s.client.CreateLV(volumeID, topols.DefaultDeviceClassName, reqBytes, []string{"ephemeral"})
-			if err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to create LV %v", err)
-			}
-			lv, err = s.getLvFromContext(ctx, topols.DefaultDeviceClassName, volumeID)
-			if err != nil {
-				return nil, err
-			}
-		}
-	} else {
-		lvr, err := s.k8sLVService.GetVolume(ctx, volumeID)
-		if err != nil {
-			return nil, err
-		}
-		lv, err = s.getLvFromContext(ctx, lvr.Spec.DeviceClass, volumeID)
-		if err != nil {
-			return nil, err
-		}
+
+	lvr, err := s.k8sLVService.GetVolume(ctx, volumeID)
+	if err != nil {
+		return nil, err
+	}
+	lv, err = s.getLvFromContext(ctx, lvr.Spec.DeviceClass, volumeID)
+	if err != nil {
+		return nil, err
 	}
 	if lv == nil {
 		return nil, status.Errorf(codes.NotFound, "failed to find LV: %s", volumeID)
@@ -118,15 +86,6 @@ func (s *nodeService) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	err = s.nodePublishFilesystemVolume(req, lv)
 
 	if err != nil {
-		if isInlineEphemeralVolumeReq {
-			// In the case of an inline ephemeral volume, there is no
-			// guarantee that NodePublishVolume will be called again, so if
-			// anything fails after the volume is created we need to attempt to
-			// clean up the LVM so we don't leak storage space.
-			if err := s.client.RemoveLV(volumeID, topols.DefaultDeviceClassName); err != nil {
-				return nil, status.Errorf(codes.Internal, "failed to remove LV for %s: %v", volumeID, err)
-			}
-		}
 		return nil, err
 	}
 	return &csi.NodePublishVolumeResponse{}, nil
@@ -214,25 +173,7 @@ func (s *nodeService) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 	if err != nil {
 		return unpublishResp, err
 	}
-	volume, err := s.getLvFromContext(ctx, topols.DefaultDeviceClassName, volID)
-	if err != nil {
-		return nil, err
-	}
-	if volume != nil && s.isEphemeralVolume(volume) {
-		if err = s.client.RemoveLV(volID, topols.DefaultDeviceClassName); err != nil {
-			return nil, status.Errorf(codes.Internal, "failed to remove LV for %s: %v", volID, err)
-		}
-	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil
-}
-
-func (s *nodeService) isEphemeralVolume(volume *lsm.LogicalVolume) bool {
-	for _, tag := range volume.Tags {
-		if tag == "ephemeral" {
-			return true
-		}
-	}
-	return false
 }
 
 func (s *nodeService) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {

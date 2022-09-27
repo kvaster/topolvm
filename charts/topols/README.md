@@ -4,7 +4,7 @@
 ## Prerequisites
 
 * Configure `kube-scheduler` on the underlying nodes, ref: https://github.com/kvaster/topols/tree/master/deploy#configure-kube-scheduler
-* `cert-manager` version `v1.0.0+` installed. ref: https://cert-manager.io/
+* `cert-manager` version `v1.7.0+` installed. ref: https://cert-manager.io/
 * Requires at least `v3.5.0+` version of helm to support
 
 ## :warning: Migration from kustomize to Helm
@@ -81,11 +81,11 @@ You need to configure kube-scheduler to use topols-scheduler extender by referri
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| cert-manager.enabled | bool | `false` | Install cert-manager together. |
-| controller.affinity | object | `{"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"labelSelector":{"matchExpressions":[{"key":"app.kubernetes.io/component","operator":"In","values":["controller"]},{"key":"app.kubernetes.io/name","operator":"In","values":["{{ include \"topols.name\" . }}"]}]},"topologyKey":"kubernetes.io/hostname"}]}}` | Specify affinity. |
+| cert-manager.enabled | bool | `false` | Install cert-manager together. # ref: https://cert-manager.io/docs/installation/kubernetes/#installing-with-helm |
+| controller.affinity | object | `{"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"labelSelector":{"matchExpressions":[{"key":"app.kubernetes.io/component","operator":"In","values":["controller"]},{"key":"app.kubernetes.io/name","operator":"In","values":["{{ include \"topols.name\" . }}"]}]},"topologyKey":"kubernetes.io/hostname"}]}}` | Specify affinity. # ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity |
 | controller.minReadySeconds | int | `nil` | Specify minReadySeconds. |
 | controller.nodeFinalize.skipped | bool | `false` | Skip automatic cleanup of PhysicalVolumeClaims when a Node is deleted. |
-| controller.nodeSelector | object | `{}` | Specify nodeSelector. |
+| controller.nodeSelector | object | `{}` | Specify nodeSelector. # ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/ |
 | controller.podDisruptionBudget.enabled | bool | `true` | Specify podDisruptionBudget enabled. |
 | controller.priorityClassName | string | `nil` | Specify priorityClassName. |
 | controller.prometheus.podMonitor.additionalLabels | object | `{}` | Additional labels that can be used so PodMonitor will be discovered by Prometheus. |
@@ -96,15 +96,16 @@ You need to configure kube-scheduler to use topols-scheduler extender by referri
 | controller.prometheus.podMonitor.relabelings | list | `[]` | RelabelConfigs to apply to samples before scraping. |
 | controller.prometheus.podMonitor.scrapeTimeout | string | `""` | Scrape timeout. If not set, the Prometheus default scrape timeout is used. |
 | controller.replicaCount | int | `2` | Number of replicas for CSI controller service. |
-| controller.resources | object | `{}` | Specify resources. |
+| controller.resources | object | `{}` | Specify resources. # ref: https://kubernetes.io/docs/user-guide/compute-resources/ |
 | controller.securityContext.enabled | bool | `true` | Enable securityContext. |
 | controller.storageCapacityTracking.enabled | bool | `false` | Enable Storage Capacity Tracking for csi-provisoner. |
 | controller.terminationGracePeriodSeconds | int | `nil` | Specify terminationGracePeriodSeconds. |
-| controller.tolerations | list | `[]` | Specify tolerations. |
+| controller.tolerations | list | `[]` | Specify tolerations. # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
 | controller.updateStrategy | object | `{}` | Specify updateStrategy. |
 | controller.volumes | list | `[{"emptyDir":{},"name":"socket-dir"}]` | Specify volumes. |
 | image.csi.csiProvisioner | string | `nil` | Specify csi-provisioner image. If not specified, `ghcr.io/kvaster/topols-with-sidecar:{{ .Values.image.tag }}` will be used. |
 | image.csi.csiResizer | string | `nil` | Specify csi-resizer image. If not specified, `ghcr.io/kvaster/topols-with-sidecar:{{ .Values.image.tag }}` will be used. |
+| image.csi.csiSnapshotter | string | `nil` | Specify csi-snapshot image. If not specified, `ghcr.io/topolvm/topolvm-with-sidecar:{{ .Values.image.tag }}` will be used. |
 | image.csi.livenessProbe | string | `nil` | Specify livenessprobe image. If not specified, `ghcr.io/kvaster/topols-with-sidecar:{{ .Values.image.tag }}` will be used. |
 | image.csi.nodeDriverRegistrar | string | `nil` | Specify csi-node-driver-registrar: image. If not specified, `ghcr.io/kvaster/topols-with-sidecar:{{ .Values.image.tag }}` will be used. |
 | image.pullPolicy | string | `nil` | TopoLS image pullPolicy. |
@@ -113,7 +114,7 @@ You need to configure kube-scheduler to use topols-scheduler extender by referri
 | node.kubeletWorkDirectory | string | `"/var/lib/kubelet"` | Specify the work directory of Kubelet on the host. For example, on microk8s it needs to be set to `/var/snap/microk8s/common/var/lib/kubelet` |
 | node.metrics.annotations | object | `{"prometheus.io/port":"metrics"}` | Annotations for Scrape used by Prometheus. |
 | node.metrics.enabled | bool | `true` | If true, enable scraping of metrics by Prometheus. |
-| node.nodeSelector | object | `{}` | Specify nodeSelector. |
+| node.nodeSelector | object | `{}` | Specify nodeSelector. # ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/ |
 | node.poolPath | string | `"/mnt/pool"` |  |
 | node.priorityClassName | string | `nil` | Specify priorityClassName. |
 | node.prometheus.podMonitor.additionalLabels | object | `{}` | Additional labels that can be used so PodMonitor will be discovered by Prometheus. |
@@ -124,42 +125,42 @@ You need to configure kube-scheduler to use topols-scheduler extender by referri
 | node.prometheus.podMonitor.relabelings | list | `[]` | RelabelConfigs to apply to samples before scraping. |
 | node.prometheus.podMonitor.scrapeTimeout | string | `""` | Scrape timeout. If not set, the Prometheus default scrape timeout is used. |
 | node.psp.allowedHostPaths | list | `[]` | Specify allowedHostPaths. |
-| node.resources | object | `{}` | Specify resources. |
+| node.resources | object | `{}` | Specify resources. # ref: https://kubernetes.io/docs/user-guide/compute-resources/ |
 | node.securityContext.capabilities.add[0] | string | `"SYS_ADMIN"` |  |
 | node.securityContext.privileged | bool | `true` |  |
-| node.tolerations | list | `[]` | Specify tolerations. |
+| node.tolerations | list | `[]` | Specify tolerations. # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
 | node.updateStrategy | object | `{}` | Specify updateStrategy. |
 | node.volumeMounts.topolsNode | list | `[]` | Specify volumeMounts for topols-node container. |
 | node.volumes | list | `[]` | Specify volumes. |
-| podSecurityPolicy.create | bool | `true` | Enable pod security policy. |
+| podSecurityPolicy.create | bool | `true` | Enable pod security policy. # ref: https://kubernetes.io/docs/concepts/policy/pod-security-policy/ |
 | priorityClass.enabled | bool | `true` | Install priorityClass. |
 | priorityClass.name | string | `"topols"` | Specify priorityClass resource name. |
 | priorityClass.value | int | `1000000` |  |
-| scheduler.affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"node-role.kubernetes.io/control-plane","operator":"Exists"}]},{"matchExpressions":[{"key":"node-role.kubernetes.io/master","operator":"Exists"}]}]}}}` | Specify affinity on the Deployment or DaemonSet. |
+| scheduler.affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"node-role.kubernetes.io/control-plane","operator":"Exists"}]},{"matchExpressions":[{"key":"node-role.kubernetes.io/master","operator":"Exists"}]}]}}}` | Specify affinity on the Deployment or DaemonSet. # ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#affinity-and-anti-affinity |
 | scheduler.deployment.replicaCount | int | `2` | Number of replicas for Deployment. |
 | scheduler.enabled | bool | `true` | If true, enable scheduler extender for TopoLS |
 | scheduler.minReadySeconds | int | `nil` | Specify minReadySeconds on the Deployment or DaemonSet. |
-| scheduler.nodeSelector | object | `{}` | Specify nodeSelector on the Deployment or DaemonSet. |
+| scheduler.nodeSelector | object | `{}` | Specify nodeSelector on the Deployment or DaemonSet. # ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/ |
 | scheduler.options.listen.host | string | `"localhost"` | Host used by Probe. |
 | scheduler.options.listen.port | int | `9251` | Listen port. |
 | scheduler.podDisruptionBudget.enabled | bool | `true` | Specify podDisruptionBudget enabled. |
 | scheduler.priorityClassName | string | `nil` | Specify priorityClassName on the Deployment or DaemonSet. |
-| scheduler.resources | object | `{}` | Specify resources on the TopoLS scheduler extender container. |
+| scheduler.resources | object | `{}` | Specify resources on the TopoLS scheduler extender container. # ref: https://kubernetes.io/docs/user-guide/compute-resources/ |
 | scheduler.schedulerOptions | object | `{}` | Tune the Node scoring. ref: https://github.com/kvaster/topols/blob/master/deploy/README.md |
 | scheduler.service.clusterIP | string | `nil` | Specify Service clusterIP. |
 | scheduler.service.nodePort | int | `nil` | Specify nodePort. |
 | scheduler.service.type | string | `"LoadBalancer"` | Specify Service type. |
 | scheduler.terminationGracePeriodSeconds | int | `nil` | Specify terminationGracePeriodSeconds on the Deployment or DaemonSet. |
-| scheduler.tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"},{"effect":"NoSchedule","key":"node-role.kubernetes.io/control-plane"},{"effect":"NoSchedule","key":"node-role.kubernetes.io/master"}]` | Specify tolerations on the Deployment or DaemonSet. |
+| scheduler.tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"},{"effect":"NoSchedule","key":"node-role.kubernetes.io/control-plane"},{"effect":"NoSchedule","key":"node-role.kubernetes.io/master"}]` | Specify tolerations on the Deployment or DaemonSet. # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
 | scheduler.type | string | `"daemonset"` | If you run with a managed control plane (such as GKE, AKS, etc), topols-scheduler should be deployed as Deployment and Service. topols-scheduler should otherwise be deployed as DaemonSet in unmanaged (i.e. bare metal) deployments. possible values:  daemonset/deployment |
 | scheduler.updateStrategy | object | `{}` | Specify updateStrategy on the Deployment or DaemonSet. |
 | securityContext.runAsGroup | int | `10000` | Specify runAsGroup. |
 | securityContext.runAsUser | int | `10000` | Specify runAsUser. |
+| snapshot.enabled | bool | `true` | Turn on the snapshot feature. |
 | storageClasses | list | `[{"name":"topols","storageClass":{"additionalParameters":{},"allowVolumeExpansion":true,"annotations":{},"isDefaultClass":false,"reclaimPolicy":null,"volumeBindingMode":"WaitForFirstConsumer"}}]` | Whether to create storageclass(s) ref: https://kubernetes.io/docs/concepts/storage/storage-classes/ |
 | webhook.caBundle | string | `nil` | Specify the certificate to be used for AdmissionWebhook. |
 | webhook.existingCertManagerIssuer | object | `{}` | Specify the cert-manager issuer to be used for AdmissionWebhook. |
 | webhook.podMutatingWebhook.enabled | bool | `true` | Enable Pod MutatingWebhook. |
-| webhook.pvcMutatingWebhook.enabled | bool | `true` | Enable PVC MutatingWebhook. |
 
 ## Generate Manifests
 

@@ -32,10 +32,6 @@ const PVCFinalizer = "topols.kvaster.com/pvc"
 // DefaultCSISocket is the default path of the CSI socket file.
 const DefaultCSISocket = "/run/topols/csi-topols.sock"
 
-// EphemeralVolumeSizeKey is the key used to obtain ephemeral inline volume size
-// from the volume context
-const EphemeralVolumeSizeKey = "topols.kvaster.com/size"
-
 // DefaultDeviceClassAnnotationName is the part of annotation name for the default device-class.
 const DefaultDeviceClassAnnotationName = "00default"
 
@@ -45,7 +41,7 @@ const DefaultDeviceClassName = ""
 // DefaultDeviceClassKey is the key that represents default device class on Node
 const DefaultDeviceClassKey = "topols.kvaster.com/default-device-class"
 
-// DefaultSizeGb is the default size in GiB for  volumes (PVC or inline ephemeral volumes) w/o capacity requests.
+// DefaultSizeGb is the default size in GiB for  volumes (PVC or generic ephemeral volumes) w/o capacity requests.
 const DefaultSizeGb = 1
 
 // DefaultSize is DefaultSizeGb in bytes

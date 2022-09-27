@@ -6,7 +6,6 @@ type LogicalVolume struct {
 	Name        string
 	DeviceClass string
 	Size        uint64
-	Tags        []string
 }
 
 type NodeStats struct {
@@ -28,9 +27,10 @@ type Client interface {
 	manager.Runnable
 
 	GetLVList(deviceClass string) ([]*LogicalVolume, error)
-	CreateLV(name, deviceClass string, size uint64, tags []string) (*LogicalVolume, error)
+	CreateLV(name, deviceClass string, size uint64) (*LogicalVolume, error)
 	RemoveLV(name, deviceClass string) error
 	ResizeLV(name, deviceClass string, size uint64) error
+	CreateLVSnapshot(name, deviceClass, sourceVolID string, size uint64, accessType string) (*LogicalVolume, error)
 
 	GetPath(v *LogicalVolume) string
 

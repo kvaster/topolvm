@@ -2,7 +2,9 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"github.com/kvaster/topols/lsm"
+	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/go-logr/logr"
 	"github.com/kvaster/topols"
@@ -191,13 +193,40 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 			return nil
 		}
 
-		volume, err := r.lvmc.CreateLV(string(lv.UID), lv.Spec.DeviceClass, uint64(reqBytes), []string{})
-		if err != nil {
-			code, message := extractFromError(err)
-			log.Error(err, message)
-			lv.Status.Code = code
-			lv.Status.Message = message
-			return err
+		var volume *lsm.LogicalVolume
+
+		// Create a snapshot LV
+		if lv.Spec.Source != "" {
+			// accessType should be either "readonly" or "readwrite".
+			if lv.Spec.AccessType != "ro" && lv.Spec.AccessType != "rw" {
+				return fmt.Errorf("invalid access type for source volume: %s", lv.Spec.AccessType)
+			}
+			sourcelv := new(topolsv1.LogicalVolume)
+			if err := r.Get(ctx, types.NamespacedName{Namespace: lv.Namespace, Name: lv.Spec.Source}, sourcelv); err != nil {
+				log.Error(err, "unable to fetch source LogicalVolume", "name", lv.Name)
+				return err
+			}
+			sourceVolID := sourcelv.Status.VolumeID
+
+			// Create a snapshot lv
+			volume, err = r.lvmc.CreateLVSnapshot(string(lv.UID), lv.Spec.DeviceClass, sourceVolID, uint64(reqBytes), lv.Spec.AccessType)
+			if err != nil {
+				code, message := extractFromError(err)
+				log.Error(err, message)
+				lv.Status.Code = code
+				lv.Status.Message = message
+				return err
+			}
+		} else {
+			// Create a regular lv
+			volume, err = r.lvmc.CreateLV(string(lv.UID), lv.Spec.DeviceClass, uint64(reqBytes))
+			if err != nil {
+				code, message := extractFromError(err)
+				log.Error(err, message)
+				lv.Status.Code = code
+				lv.Status.Message = message
+				return err
+			}
 		}
 
 		lv.Status.VolumeID = volume.Name

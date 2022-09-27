@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"github.com/fsnotify/fsnotify"
-	"io/ioutil"
+	"io"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -85,14 +86,14 @@ func (c *btrfs) GetLVList(deviceClass string) ([]*LogicalVolume, error) {
 	dc := c.findDeviceClass(deviceClass)
 	if dc != nil {
 		for _, v := range dc.Volumes {
-			volumes = append(volumes, &LogicalVolume{Name: v.Name, DeviceClass: dc.Name, Size: v.Size, Tags: []string{}})
+			volumes = append(volumes, &LogicalVolume{Name: v.Name, DeviceClass: dc.Name, Size: v.Size})
 		}
 	}
 
 	return volumes, nil
 }
 
-func (c *btrfs) CreateLV(name, deviceClass string, size uint64, tags []string) (*LogicalVolume, error) {
+func (c *btrfs) CreateLV(name, deviceClass string, size uint64) (*LogicalVolume, error) {
 	btrfsLogger.Info("CreateLV", "Name", name, "DeviceClass", deviceClass, "Size", size)
 
 	c.mu.Lock()
@@ -103,10 +104,51 @@ func (c *btrfs) CreateLV(name, deviceClass string, size uint64, tags []string) (
 		return nil, errNoDeviceClass
 	}
 
-	v := &LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size, Tags: tags}
+	v := &LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size}
 	path := c.GetPath(v)
 
 	_, err := runCmd("/sbin/btrfs", "subvol", "create", path)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = runCmd("/sbin/btrfs", "qgroup", "limit", strconv.FormatUint(size, 10), path)
+	if err != nil {
+		_ = removeSubvol(path)
+		return nil, err
+	}
+
+	dc.Volumes = append(dc.Volumes, v)
+
+	c.notify()
+
+	return v, nil
+}
+
+func (c *btrfs) CreateLVSnapshot(name, deviceClass, sourceVolID string, size uint64, accessType string) (*LogicalVolume, error) {
+	btrfsLogger.Info("CreateLVSNapshot", "Name", name, "DeviceClass", deviceClass, "Size", size, "sourceVolID", sourceVolID, "accessType", accessType)
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	dc := c.findDeviceClass(deviceClass)
+	if dc == nil {
+		return nil, errNoDeviceClass
+	}
+
+	v := &LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size}
+	path := c.GetPath(v)
+
+	sv := &LogicalVolume{Name: sourceVolID, DeviceClass: dc.Name, Size: size}
+	srcPath := c.GetPath(sv)
+
+	args := []string{"subvol", "snapshot"}
+	if accessType == "ro" {
+		args = append(args, "-r")
+	}
+	args = append(args, srcPath, path)
+
+	_, err := runCmd("/sbin/btrfs", args...)
 	if err != nil {
 		return nil, err
 	}
@@ -205,11 +247,7 @@ func (c *btrfs) ResizeLV(name, deviceClass string, size uint64) error {
 }
 
 func (c *btrfs) GetPath(v *LogicalVolume) string {
-	name := v.Name
-	if len(v.Tags) > 0 {
-		name += ":" + strings.Join(v.Tags, ":")
-	}
-	return filepath.Join(c.poolPath, v.DeviceClass, name)
+	return filepath.Join(c.poolPath, v.DeviceClass, v.Name)
 }
 
 func (c *btrfs) VolumeStats(name, deviceClass string) (*VolumeStats, error) {
@@ -339,7 +377,7 @@ func (c *btrfs) Start(ctx context.Context) error {
 func (c *btrfs) loadConfig() {
 	btrfsLogger.Info("Loading config")
 
-	b, err := ioutil.ReadFile(filepath.Join(c.poolPath, configFile))
+	b, err := os.ReadFile(filepath.Join(c.poolPath, configFile))
 	if err != nil {
 		btrfsLogger.Info("Error loading config file", "Err", err.Error())
 		return
@@ -369,7 +407,7 @@ func (c *btrfs) loadConfig() {
 		if dc == nil {
 			btrfsLogger.Info("Adding device class", "DeviceClass", dcc.Name)
 
-			files, err := ioutil.ReadDir(filepath.Join(c.poolPath, dcc.Name))
+			files, err := os.ReadDir(filepath.Join(c.poolPath, dcc.Name))
 			if err != nil {
 				btrfsLogger.Error(err, "Error listing device class path", "DeviceClass", dcc.Name)
 				return
@@ -387,9 +425,7 @@ func (c *btrfs) loadConfig() {
 					return
 				}
 
-				names := strings.Split(file.Name(), ":")
-
-				volumes = append(volumes, &LogicalVolume{Name: names[0], Size: limit, DeviceClass: dcc.Name, Tags: names[1:]})
+				volumes = append(volumes, &LogicalVolume{Name: file.Name(), Size: limit, DeviceClass: dcc.Name})
 			}
 
 			dc = &deviceClass{Name: dcc.Name, Volumes: volumes}
@@ -469,7 +505,7 @@ func runCmd(cmd string, args ...string) (string, error) {
 	if err := c.Start(); err != nil {
 		return "", err
 	}
-	out, err := ioutil.ReadAll(stdout)
+	out, err := io.ReadAll(stdout)
 	if err != nil {
 		return "", err
 	}

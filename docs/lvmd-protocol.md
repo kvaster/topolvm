@@ -6,6 +6,8 @@
 - [lvmd/proto/lvmd.proto](#lvmd/proto/lvmd.proto)
     - [CreateLVRequest](#proto.CreateLVRequest)
     - [CreateLVResponse](#proto.CreateLVResponse)
+    - [CreateLVSnapshotRequest](#proto.CreateLVSnapshotRequest)
+    - [CreateLVSnapshotResponse](#proto.CreateLVSnapshotResponse)
     - [Empty](#proto.Empty)
     - [GetFreeBytesRequest](#proto.GetFreeBytesRequest)
     - [GetFreeBytesResponse](#proto.GetFreeBytesResponse)
@@ -14,6 +16,7 @@
     - [LogicalVolume](#proto.LogicalVolume)
     - [RemoveLVRequest](#proto.RemoveLVRequest)
     - [ResizeLVRequest](#proto.ResizeLVRequest)
+    - [ThinPoolItem](#proto.ThinPoolItem)
     - [WatchItem](#proto.WatchItem)
     - [WatchResponse](#proto.WatchResponse)
   
@@ -62,6 +65,41 @@ Represents the response of CreateLV.
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
 | volume | [LogicalVolume](#proto.LogicalVolume) |  | Information of the created volume. |
+
+
+
+
+
+
+<a name="proto.CreateLVSnapshotRequest"></a>
+
+### CreateLVSnapshotRequest
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| name | [string](#string) |  | The logical volume name. |
+| tags | [string](#string) | repeated | Tags to add to the volume during creation |
+| device_class | [string](#string) |  |  |
+| source_volume | [string](#string) |  | Source lv of snapshot. |
+| size_gb | [uint64](#uint64) |  | Volume size in GiB. |
+| access_type | [string](#string) |  | Access type of snapshot |
+
+
+
+
+
+
+<a name="proto.CreateLVSnapshotResponse"></a>
+
+### CreateLVSnapshotResponse
+
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| snapshot | [LogicalVolume](#proto.LogicalVolume) |  | Information of the created snapshot lv. |
 
 
 
@@ -193,17 +231,36 @@ The volume size will be set to exactly &#34;size_gb&#34;.
 
 
 
-<a name="proto.WatchItem"></a>
+<a name="proto.ThinPoolItem"></a>
 
-### WatchItem
-
+### ThinPoolItem
+Represents the details of thinpool.
 
 
 | Field | Type | Label | Description |
 | ----- | ---- | ----- | ----------- |
-| free_bytes | [uint64](#uint64) |  | Free space of the volume group in bytes. |
+| data_percent | [double](#double) |  | Data percent occupied on the thinpool, used for monitoring. |
+| metadata_percent | [double](#double) |  | Metadata percent occupied on the thinpool, used for monitoring. |
+| overprovision_bytes | [uint64](#uint64) |  | Free space on the thinpool with overprovision, used for annotating node. |
+| size_bytes | [uint64](#uint64) |  | Physical data space size of the thinpool. |
+
+
+
+
+
+
+<a name="proto.WatchItem"></a>
+
+### WatchItem
+Represents the response corresponding to device class targets.
+
+
+| Field | Type | Label | Description |
+| ----- | ---- | ----- | ----------- |
+| free_bytes | [uint64](#uint64) |  | Free space in the volume group in bytes. |
 | device_class | [string](#string) |  |  |
-| size_bytes | [uint64](#uint64) |  | Size of the volume group in bytes. |
+| size_bytes | [uint64](#uint64) |  | Size of volume group in bytes. |
+| thin_pool | [ThinPoolItem](#proto.ThinPoolItem) |  |  |
 
 
 
@@ -242,6 +299,7 @@ Service to manage logical volumes of the volume group.
 | CreateLV | [CreateLVRequest](#proto.CreateLVRequest) | [CreateLVResponse](#proto.CreateLVResponse) | Create a logical volume. |
 | RemoveLV | [RemoveLVRequest](#proto.RemoveLVRequest) | [Empty](#proto.Empty) | Remove a logical volume. |
 | ResizeLV | [ResizeLVRequest](#proto.ResizeLVRequest) | [Empty](#proto.Empty) | Resize a logical volume. |
+| CreateLVSnapshot | [CreateLVSnapshotRequest](#proto.CreateLVSnapshotRequest) | [CreateLVSnapshotResponse](#proto.CreateLVSnapshotResponse) |  |
 
 
 <a name="proto.VGService"></a>

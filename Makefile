@@ -2,11 +2,10 @@
 
 CONTROLLER_RUNTIME_VERSION=$(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_TOOLS_VERSION=$(shell awk '/sigs\.k8s\.io\/controller-tools/ {print substr($$2, 2)}' go.mod)
-CSI_VERSION=1.5.0
-PROTOC_VERSION=3.19.3
-HELM_VERSION=3.8.0
-HELM_DOCS_VERSION=1.7.0
-YQ_VERSION=4.18.1
+CSI_VERSION=1.6.0
+PROTOC_VERSION=21.6
+HELM_VERSION=3.10.0
+HELM_DOCS_VERSION=1.11.0
 GINKGO_VERSION := $(shell awk '/github.com\/onsi\/ginkgo/ {print substr($$2, 2)}' go.mod)
 
 SUDO := sudo
@@ -14,7 +13,6 @@ CURL := curl -sSLf
 BINDIR := $(shell pwd)/bin
 CONTROLLER_GEN := $(BINDIR)/controller-gen
 STATICCHECK := $(BINDIR)/staticcheck
-NILERR := $(BINDIR)/nilerr
 PROTOC := PATH=$(BINDIR):$(PATH) $(BINDIR)/protoc -I=$(shell pwd)/include:.
 PACKAGES := unzip
 ENVTEST_ASSETS_DIR := $(shell pwd)/testbin
@@ -29,7 +27,7 @@ BUILD_TARGET=hypertopols
 TOPOLS_VERSION ?= devel
 IMAGE_TAG ?= latest
 
-ENVTEST_KUBERNETES_VERSION=1.23
+ENVTEST_KUBERNETES_VERSION=1.24
 
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_DOC_VERSION := $(shell awk '/github.com\/pseudomuto\/protoc-gen-doc/ {print substr($$2, 2)}' go.mod)
@@ -80,25 +78,26 @@ manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefin
 		webhook \
 		paths="./api/...;./controllers;./hook;./driver/k8s;./pkg/..." \
 		output:crd:artifacts:config=config/crd/bases
-	$(BINDIR)/yq eval 'del(.status)' config/crd/bases/topols.kvaster.com_logicalvolumes.yaml > charts/topols/crds/topols.kvaster.com_logicalvolumes.yaml
 
-.PHONY: generate
-generate: $(PROTOBUF_GEN) ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+.PHONY: generate-api ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+generate-api:
 	$(CONTROLLER_GEN) object:headerFile="./hack/boilerplate.go.txt" paths="./api/..."
 
-.PHONY: check-uncommitted
-check-uncommitted: ## Check if latest generated artifacts are committed.
-	$(MAKE) manifests
-	find . -name "*.pb.go" -delete
-	$(MAKE) generate
+.PHONY: generate-helm-docs
+generate-helm-docs:
 	./bin/helm-docs -c charts/topols/
+
+.PHONY: generate
+generate: $(PROTOBUF_GEN) manifests generate-api generate-helm-docs
+
+.PHONY: check-uncommitted
+check-uncommitted: generate ## Check if latest generated artifacts are committed.
 	git diff --exit-code --name-only
 
 .PHONY: lint
 lint: ## Run lint
 	test -z "$$(gofmt -s -l . | grep -vE '^vendor|^api/v1/zz_generated.deepcopy.go' | tee /dev/stderr)"
 	$(STATICCHECK) ./...
-	#test -z "$$($(NILERR) ./... 2>&1 | tee /dev/stderr)"
 	go vet ./...
 	test -z "$$(go vet ./... | grep -v '^vendor' | tee /dev/stderr)"
 
@@ -144,7 +143,7 @@ tag: ## Tag topols images.
 	docker tag $(IMAGE_PREFIX)topols-with-sidecar:devel $(IMAGE_PREFIX)topols-with-sidecar:$(IMAGE_TAG)
 
 .PHONY: push
-push:
+push: ## Push topols images.
 	docker push $(IMAGE_PREFIX)topols:$(IMAGE_TAG)
 	docker push $(IMAGE_PREFIX)topols-with-sidecar:$(IMAGE_TAG)
 
@@ -153,7 +152,6 @@ push:
 .PHONY: tools
 tools: ## Install development tools.
 	GOBIN=$(BINDIR) go install honnef.co/go/tools/cmd/staticcheck@latest
-	GOBIN=$(BINDIR) go install github.com/gostaticanalysis/nilerr/cmd/nilerr@latest
 	# Follow the official documentation to install the `latest` version, because explicitly specifying the version will get an error.
 	GOBIN=$(BINDIR) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
 	GOBIN=$(BINDIR) go install sigs.k8s.io/controller-tools/cmd/controller-gen@v$(CONTROLLER_TOOLS_VERSION)
@@ -170,8 +168,6 @@ tools: ## Install development tools.
 	GOBIN=$(BINDIR) go install github.com/norwoodj/helm-docs/cmd/helm-docs@v$(HELM_DOCS_VERSION)
 	$(CURL) https://get.helm.sh/helm-v$(HELM_VERSION)-linux-amd64.tar.gz \
 		| tar xvz -C $(BINDIR) --strip-components 1 linux-amd64/helm
-	$(CURL) https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64 -o $(BINDIR)/yq \
-		&& chmod +x $(BINDIR)/yq
 
 .PHONY: setup
 setup: ## Setup local environment.
