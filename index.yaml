@@ -2,6 +2,24 @@ apiVersion: v1
 entries:
   topols:
   - apiVersion: v2
+    appVersion: 0.15.1
+    created: "2022-09-27T17:21:41.186170116Z"
+    dependencies:
+    - condition: cert-manager.enabled
+      name: cert-manager
+      repository: https://charts.jetstack.io
+      version: 1.7.0
+    description: Topols
+    digest: 03dc4cf298687ffe85bc27acce8cddd54d80469a89461cf94e9b997422b233e9
+    home: https://github.com/kvaster/topols
+    name: topols
+    sources:
+    - https://github.com/kvaster/topols
+    type: application
+    urls:
+    - https://github.com/kvaster/topols/releases/download/topols-chart-v9.0.1/topols-9.0.1.tgz
+    version: 9.0.1
+  - apiVersion: v2
     appVersion: 0.12.0
     created: "2022-06-12T10:05:51.587686246Z"
     dependencies:
@@ -37,4 +55,4 @@ entries:
     urls:
     - https://github.com/kvaster/topols/releases/download/topols-chart-v3.2.0/topols-3.2.0.tgz
     version: 3.2.0
-generated: "2022-06-12T10:05:51.587696546Z"
+generated: "2022-09-27T17:21:41.186190116Z"
