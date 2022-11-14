@@ -7,6 +7,9 @@ This file itself is based on [Keep a CHANGELOG](https://keepachangelog.com/en/0.
 
 ## [Unreleased]
 
+## [10.0.0] - 2022-11-14
+- synced with topolvm chart v10.0.0
+
 ## [6.0.1] - 2022-06-10
 ### Added
 - synced with topolvm chart v6.0.1

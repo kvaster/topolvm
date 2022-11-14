@@ -49,6 +49,9 @@ spec:
           command:
             - /topols-scheduler
             - --config=/etc/topols/scheduler-options.yaml
+          {{- with .Values.scheduler.args }}
+          args: {{ toYaml . | nindent 12 }}
+          {{- end }}
           livenessProbe:
             httpGet:
               host: {{ .Values.scheduler.options.listen.host }}
@@ -62,7 +65,7 @@ spec:
           volumeMounts:
             - mountPath: /etc/topols
               name: {{ template "topols.fullname" . }}-scheduler-options
-          {{- with .Values.scheduler.resources }}
+          {{- with .Values.resources.topols_scheduler }}
           resources: {{ toYaml . | nindent 12 }}
           {{- end }}
       hostNetwork: true

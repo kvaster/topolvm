@@ -43,6 +43,9 @@ spec:
             - /topols-node
             - --csi-socket={{ .Values.node.kubeletWorkDirectory }}/plugins/topols.kvaster.com/node/csi-topols.sock
             - --pool-path={{ .Values.node.poolPath }}
+          {{- with .Values.node.args }}
+          args: {{ toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: healthz
               containerPort: 9808
@@ -58,7 +61,7 @@ spec:
             initialDelaySeconds: 10
             timeoutSeconds: 3
             periodSeconds: 60
-          {{- with .Values.node.resources }}
+          {{- with .Values.resources.topols_node }}
           resources: {{ toYaml . | nindent 12 }}
           {{- end }}
           env:
@@ -109,6 +112,9 @@ spec:
                 - /bin/sh
                 - -c
                 - rm -rf /registration/topols.kvaster.com /registration/topols.kvaster.com-reg.sock
+          {{- with .Values.resources.csi_registrar }}
+          resources: {{ toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: node-plugin-dir
               mountPath: {{ .Values.node.kubeletWorkDirectory }}/plugins/topols.kvaster.com/node/
@@ -127,6 +133,9 @@ spec:
           command:
             - /livenessprobe
             - --csi-address={{ .Values.node.kubeletWorkDirectory }}/plugins/topols.kvaster.com/node/csi-topols.sock
+          {{- with .Values.resources.liveness_probe }}
+          resources: {{ toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: node-plugin-dir
               mountPath: {{ .Values.node.kubeletWorkDirectory }}/plugins/topols.kvaster.com/node/

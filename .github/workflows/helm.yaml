@@ -35,15 +35,7 @@ jobs:
         run: ./bin/helm-docs && git diff --no-patch --exit-code
 
       - name: Set up chart-testing
-        uses: helm/chart-testing-action@v2.3.0
-
-      - name: Run chart-testing (list-changed)
-        id: list-changed
-        run: |
-          changed=$(ct list-changed --config ct.yaml)
-          if [[ -n "$changed" ]]; then
-            echo "::set-output name=changed::true"
-          fi
+        uses: helm/chart-testing-action@v2.3.1
 
       - name: Run chart-testing (lint)
         run: ct lint --config ct.yaml
