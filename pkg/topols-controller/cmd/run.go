@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	clientwrapper "github.com/kvaster/topols/client"
 	"net"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"time"
@@ -70,25 +71,23 @@ func subMain() error {
 		return err
 	}
 
+	reader := clientwrapper.NewWrappedClient(mgr.GetClient())
+	apiReader := clientwrapper.NewWrappedReader(mgr.GetAPIReader(), mgr.GetClient().Scheme())
+
 	// register webhook handlers
 	// admissoin.NewDecoder never returns non-nil error
 	dec, _ := admission.NewDecoder(scheme)
 	wh := mgr.GetWebhookServer()
-	wh.Register("/pod/mutate", hook.PodMutator(mgr.GetClient(), mgr.GetAPIReader(), dec))
+	wh.Register("/pod/mutate", hook.PodMutator(reader, apiReader, dec))
 
 	// register controllers
-	nodecontroller := &controllers.NodeReconciler{
-		Client:           mgr.GetClient(),
-		SkipNodeFinalize: config.skipNodeFinalize,
-	}
+	nodecontroller := controllers.NewNodeReconciler(reader, config.skipNodeFinalize)
 	if err := nodecontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Node")
 		return err
 	}
 
-	pvccontroller := &controllers.PersistentVolumeClaimReconciler{
-		Client: mgr.GetClient(),
-	}
+	pvccontroller := controllers.NewPersistentVolumeClaimReconciler(reader)
 	if err := pvccontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")
 		return err
@@ -103,7 +102,7 @@ func subMain() error {
 		defer cancel()
 
 		var drv storagev1.CSIDriver
-		return mgr.GetAPIReader().Get(ctx, types.NamespacedName{Name: topols.PluginName}, &drv)
+		return apiReader.Get(ctx, types.NamespacedName{Name: topols.PluginName}, &drv)
 	}
 	checker := runners.NewChecker(check, 1*time.Minute)
 	if err := mgr.Add(checker); err != nil {
@@ -115,7 +114,7 @@ func subMain() error {
 	if err != nil {
 		return err
 	}
-	n := k8s.NewNodeService(mgr)
+	n := k8s.NewNodeService(reader)
 
 	grpcServer := grpc.NewServer()
 	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService(checker.Ready))

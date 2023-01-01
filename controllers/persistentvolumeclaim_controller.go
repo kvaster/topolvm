@@ -17,6 +17,11 @@ type PersistentVolumeClaimReconciler struct {
 	client.Client
 }
 
+// NewPersistentVolumeClaimReconciler returns NodeReconciler.
+func NewPersistentVolumeClaimReconciler(client client.Client) *PersistentVolumeClaimReconciler {
+	return &PersistentVolumeClaimReconciler{Client: client}
+}
+
 //+kubebuilder:rbac:groups=core,resources=persistentvolumeclaims,verbs=get;list;watch;update
 //+kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;delete
 

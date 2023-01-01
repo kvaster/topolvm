@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/kvaster/topols"
 	topolsv1 "github.com/kvaster/topols/api/v1"
+	clientwrapper "github.com/kvaster/topols/client"
 	"github.com/kvaster/topols/controllers"
 	"github.com/kvaster/topols/csi"
 	"github.com/kvaster/topols/driver"
@@ -54,6 +55,8 @@ func subMain() error {
 		setupLog.Error(err, "unable to start manager")
 		return err
 	}
+	reader := clientwrapper.NewWrappedClient(mgr.GetClient())
+	apiReader := clientwrapper.NewWrappedReader(mgr.GetAPIReader(), mgr.GetClient().Scheme())
 
 	lvmc, err := lsm.New(config.poolPath)
 	if err != nil {
@@ -64,12 +67,7 @@ func subMain() error {
 		return err
 	}
 
-	lvcontroller := controllers.NewLogicalVolumeReconciler(
-		mgr.GetClient(),
-		lvmc,
-		nodename,
-	)
-
+	lvcontroller := controllers.NewLogicalVolumeReconciler(reader, lvmc, nodename)
 	if err := lvcontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "LogicalVolume")
 		return err
@@ -77,7 +75,7 @@ func subMain() error {
 	//+kubebuilder:scaffold:builder
 
 	// Add health checker to manager
-	checker := runners.NewChecker(checkFunc(mgr.GetAPIReader()), 1*time.Minute)
+	checker := runners.NewChecker(checkFunc(apiReader), 1*time.Minute)
 	if err := mgr.Add(checker); err != nil {
 		return err
 	}
@@ -85,7 +83,7 @@ func subMain() error {
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
 	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
-	if err := mgr.Add(runners.NewMetricsExporter(mgr, lvmc, nodename)); err != nil {
+	if err := mgr.Add(runners.NewMetricsExporter(reader, lvmc, nodename)); err != nil {
 		return err
 	}
 

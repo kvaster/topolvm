@@ -3,10 +3,12 @@
 CONTROLLER_RUNTIME_VERSION=$(shell awk '/sigs\.k8s\.io\/controller-runtime/ {print substr($$2, 2)}' go.mod)
 CONTROLLER_TOOLS_VERSION=$(shell awk '/sigs\.k8s\.io\/controller-tools/ {print substr($$2, 2)}' go.mod)
 CSI_VERSION=1.6.0
-PROTOC_VERSION=21.6
-HELM_VERSION=3.10.0
+PROTOC_VERSION=21.12
+HELM_VERSION=3.10.2
 HELM_DOCS_VERSION=1.11.0
-GINKGO_VERSION := $(shell awk '/github.com\/onsi\/ginkgo/ {print substr($$2, 2)}' go.mod)
+YQ_VERSION=4.30.6
+BUILDX_VERSION=0.9.1
+GINKGO_VERSION := $(shell awk '/github.com\/onsi\/ginkgo\/v2/ {print substr($$2, 2)}' go.mod)
 
 SUDO := sudo
 CURL := curl -sSLf
@@ -27,11 +29,17 @@ BUILD_TARGET=hypertopols
 TOPOLS_VERSION ?= devel
 IMAGE_TAG ?= latest
 
-ENVTEST_KUBERNETES_VERSION=1.24
+ENVTEST_KUBERNETES_VERSION=1.25
 
 PROTOC_GEN_GO_VERSION := $(shell awk '/google.golang.org\/protobuf/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_DOC_VERSION := $(shell awk '/github.com\/pseudomuto\/protoc-gen-doc/ {print substr($$2, 2)}' go.mod)
 PROTOC_GEN_GO_GRPC_VERSION := $(shell awk '/google.golang.org\/grpc\/cmd\/protoc-gen-go-grpc/ {print substr($$2, 2)}' go.mod)
+
+PUSH ?= false
+BUILDX_PUSH_OPTIONS := "-o type=tar,dest=build/topolvm.tar"
+ifeq ($(PUSH),true)
+BUILDX_PUSH_OPTIONS := --push
+endif
 
 # Set the shell used to bash for better error handling.
 SHELL = /bin/bash
@@ -78,6 +86,7 @@ manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefin
 		webhook \
 		paths="./api/...;./controllers;./hook;./driver/k8s;./pkg/..." \
 		output:crd:artifacts:config=config/crd/bases
+	$(BINDIR)/yq eval 'del(.status)' config/crd/bases/topols.kvaster.com_logicalvolumes.yaml > charts/topols/templates/crds/topols.kvaster.com_logicalvolumes.yaml
 
 .PHONY: generate-api ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
 generate-api:
@@ -106,7 +115,14 @@ test: lint ## Run lint and unit tests.
 	go install ./...
 
 	mkdir -p $(ENVTEST_ASSETS_DIR)
-	source <($(BINDIR)/setup-envtest use $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p env); GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn go test -race -v ./...
+	source <($(BINDIR)/setup-envtest use $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p env); GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn go test -count=1 -race -v --timeout=60s ./...
+
+groupname-test: ## Run unit tests that depends on the groupname.
+	go install ./...
+
+	mkdir -p $(ENVTEST_ASSETS_DIR)
+	source <($(BINDIR)/setup-envtest use $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p env); GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn TEST_LEGACY=true go test -count=1 -race -v --timeout=60s ./client/*
+	TEST_LEGACY=true go test -count=1 -race -v --timeout=60s ./constants*.go
 
 .PHONY: clean
 clean: ## Clean working directory.
@@ -114,6 +130,8 @@ clean: ## Clean working directory.
 	rm -rf bin/
 	rm -rf include/
 	rm -rf testbin/
+	rm -f $(HOME)/.docker/cli-plugins/docker-buildx
+	docker run --privileged --rm tonistiigi/binfmt --uninstall linux/amd64,linux/arm64/v8,linux/ppc64le
 
 ##@ Build
 
@@ -125,17 +143,37 @@ build-topols: build/hypertopols
 
 build/hypertopols: $(GO_FILES)
 	mkdir -p build
-	go build -o $@ -ldflags "-w -s -X github.com/kvaster/topols.Version=$(TOPOLS_VERSION)" ./pkg/hypertopols
+	GOARCH=$(GOARCH) go build -o $@ -ldflags "-w -s -X github.com/kvaster/topols.Version=$(TOPOLS_VERSION)" ./pkg/hypertopols
 
 .PHONY: csi-sidecars
 csi-sidecars: ## Build sidecar images.
 	mkdir -p build
-	make -f csi-sidecars.mk OUTPUT_DIR=build
+	make -f csi-sidecars.mk OUTPUT_DIR=build BUILD_PLATFORMS="linux $(GOARCH)"
 
 .PHONY: image
 image: ## Build topols images.
-	docker build --no-cache -t $(IMAGE_PREFIX)topols:devel --build-arg TOPOLS_VERSION=$(TOPOLS_VERSION) .
-	docker build --no-cache -t $(IMAGE_PREFIX)topols-with-sidecar:devel --build-arg IMAGE_PREFIX=$(IMAGE_PREFIX) --build-arg TOPOLS_VERSION=devel -f Dockerfile.with-sidecar .
+	docker buildx build --no-cache --load -t $(IMAGE_PREFIX)topols:devel --build-arg TOPOLS_VERSION=$(TOPOLS_VERSION) .
+	docker buildx build --no-cache --load -t $(IMAGE_PREFIX)topols-with-sidecar:devel --build-arg IMAGE_PREFIX=$(IMAGE_PREFIX) --build-arg TOPOLS_VERSION=$(TOPOLS_VERSION) -f Dockerfile.with-sidecar .
+
+.PHONY: create-docker-container
+create-docker-container: ## Create docker-container.
+	docker buildx create --use
+
+.PHONY: multiplatform-images
+multi-platform-images: ## Push multi-platform topolvm images.
+	mkdir -p build
+	docker buildx build --no-cache $(BUILDX_PUSH_OPTIONS) \
+		--platform linux/amd64,linux/arm64/v8,linux/ppc64le \
+		-t $(IMAGE_PREFIX)topols:$(IMAGE_TAG) \
+		--build-arg TOPOLS_VERSION=$(TOPOLS_VERSION) \
+		.
+	docker buildx build --no-cache $(BUILDX_PUSH_OPTIONS) \
+		--platform linux/amd64,linux/arm64/v8,linux/ppc64le \
+		-t $(IMAGE_PREFIX)topols-with-sidecar:$(IMAGE_TAG) \
+		--build-arg TOPOLS_VERSION=$(TOPOLS_VERSION) \
+		--build-arg IMAGE_PREFIX=$(IMAGE_PREFIX) \
+		-f Dockerfile.with-sidecar \
+		.
 
 .PHONY: tag
 tag: ## Tag topols images.
@@ -163,14 +201,26 @@ tools: ## Install development tools.
 	GOBIN=$(BINDIR) go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v$(PROTOC_GEN_GO_GRPC_VERSION)
 	GOBIN=$(BINDIR) go install github.com/pseudomuto/protoc-gen-doc/cmd/protoc-gen-doc@v$(PROTOC_GEN_DOC_VERSION)
 
-	GOBIN=$(BINDIR) go install github.com/onsi/ginkgo/ginkgo@v$(GINKGO_VERSION)
+	GOBIN=$(BINDIR) go install github.com/onsi/ginkgo/v2/ginkgo@v$(GINKGO_VERSION)
 
 	GOBIN=$(BINDIR) go install github.com/norwoodj/helm-docs/cmd/helm-docs@v$(HELM_DOCS_VERSION)
 	$(CURL) https://get.helm.sh/helm-v$(HELM_VERSION)-linux-amd64.tar.gz \
 		| tar xvz -C $(BINDIR) --strip-components 1 linux-amd64/helm
+	$(CURL) https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_amd64 -o $(BINDIR)/yq \
+		&& chmod +x $(BINDIR)/yq
 
 .PHONY: setup
 setup: ## Setup local environment.
 	$(SUDO) apt-get update
 	$(SUDO) apt-get -y install --no-install-recommends $(PACKAGES)
 	$(MAKE) tools
+	$(MAKE) $(HOME)/.docker/cli-plugins/docker-buildx
+	# https://github.com/tonistiigi/binfmt
+	docker run --privileged --rm tonistiigi/binfmt --install linux/amd64,linux/arm64/v8,linux/ppc64le
+
+# https://docs.docker.com/build/buildx/install/
+$(HOME)/.docker/cli-plugins/docker-buildx:
+	mkdir -p $(HOME)/.docker/cli-plugins
+	$(CURL) -o $@ \
+		https://github.com/docker/buildx/releases/download/v$(BUILDX_VERSION)/buildx-v$(BUILDX_VERSION).$(GOOS)-$(GOARCH) \
+		&& chmod +x $@

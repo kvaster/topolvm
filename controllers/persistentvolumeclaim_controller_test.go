@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/kvaster/topols"
-	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -31,9 +31,7 @@ var _ = Describe("PersistentVolumeClaimController controller", func() {
 		})
 		Expect(err).ToNot(HaveOccurred())
 
-		reconciler := PersistentVolumeClaimReconciler{
-			Client: k8sClient,
-		}
+		reconciler := NewPersistentVolumeClaimReconciler(k8sClient)
 		err = reconciler.SetupWithManager(mgr)
 		Expect(err).NotTo(HaveOccurred())
 

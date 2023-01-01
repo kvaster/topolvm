@@ -16,7 +16,7 @@ roleRef:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: topols-csi-provisioner-role
+  name: {{ template "topols.clusterRolePrefix" }}-csi-provisioner-role
   labels:
     {{- include "topols.labels" . | nindent 4 }}
 subjects:
@@ -25,13 +25,13 @@ subjects:
     name: {{ template "topols.fullname" . }}-controller
 roleRef:
   kind: ClusterRole
-  name: topols-external-provisioner-runner
+  name: {{ template "topols.clusterRolePrefix" }}-external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: topols-csi-resizer-role
+  name: {{ template "topols.clusterRolePrefix" }}-csi-resizer-role
   labels:
     {{- include "topols.labels" . | nindent 4 }}
 subjects:
@@ -40,13 +40,13 @@ subjects:
     name: {{ template "topols.fullname" . }}-controller
 roleRef:
   kind: ClusterRole
-  name: topols-external-resizer-runner
+  name: {{ template "topols.clusterRolePrefix" }}-external-resizer-runner
   apiGroup: rbac.authorization.k8s.io
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: topols-csi-snapshotter-role
+  name: {{ template "topols.clusterRolePrefix" }}-csi-snapshotter-role
   labels:
   {{- include "topols.labels" . | nindent 4 }}
 subjects:
@@ -55,5 +55,5 @@ subjects:
   name: {{ template "topols.fullname" . }}-controller
 roleRef:
   kind: ClusterRole
-  name: topols-external-snapshotter-runner
+  name: {{ template "topols.clusterRolePrefix" }}-external-snapshotter-runner
   apiGroup: rbac.authorization.k8s.io

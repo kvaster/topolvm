@@ -60,3 +60,10 @@ Create the name of the service account to use
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
 {{- end }}
+
+{{/*
+Create ClusterRole prefix to use
+*/}}
+{{- define "topols.clusterRolePrefix" -}}
+{{- trimSuffix "-system" .Release.Namespace }}
+{{- end }}

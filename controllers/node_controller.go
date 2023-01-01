@@ -19,7 +19,15 @@ import (
 // NodeReconciler reconciles a Node object
 type NodeReconciler struct {
 	client.Client
-	SkipNodeFinalize bool
+	skipNodeFinalize bool
+}
+
+// NewNodeReconciler returns NodeReconciler.
+func NewNodeReconciler(client client.Client, skipNodeFinalize bool) *NodeReconciler {
+	return &NodeReconciler{
+		Client:           client,
+		skipNodeFinalize: skipNodeFinalize,
+	}
 }
 
 //+kubebuilder:rbac:groups=core,resources=nodes,verbs=get;list;watch;update;patch
@@ -96,7 +104,7 @@ func (r *NodeReconciler) targetStorageClasses(ctx context.Context) (map[string]b
 }
 
 func (r *NodeReconciler) doFinalize(ctx context.Context, log logr.Logger, node *corev1.Node) (ctrl.Result, error) {
-	if r.SkipNodeFinalize {
+	if r.skipNodeFinalize {
 		log.Info("skipping node finalize")
 		return ctrl.Result{}, nil
 	}

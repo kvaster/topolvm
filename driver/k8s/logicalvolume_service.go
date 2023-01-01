@@ -10,6 +10,7 @@ import (
 
 	"github.com/kvaster/topols"
 	topolsv1 "github.com/kvaster/topols/api/v1"
+	clientwrapper "github.com/kvaster/topols/client"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -29,7 +30,7 @@ type LogicalVolumeService struct {
 		client.Writer
 		client.StatusClient
 	}
-	getter       *getter.RetryMissingGetter
+	getter       getter.Interface
 	volumeGetter *volumeGetter
 	mu           sync.Mutex
 }
@@ -41,6 +42,37 @@ const (
 var (
 	logger = ctrl.Log.WithName("LogicalVolume")
 )
+
+type retryMissingGetter struct {
+	cacheReader client.Reader
+	apiReader   client.Reader
+	getter      getter.Interface
+}
+
+func newRetryMissingGetter(cacheReader client.Reader, apiReader client.Reader) *retryMissingGetter {
+	return &retryMissingGetter{
+		cacheReader: cacheReader,
+		apiReader:   apiReader,
+		getter:      getter.NewRetryMissingGetter(cacheReader, apiReader),
+	}
+}
+
+func (r *retryMissingGetter) Get(ctx context.Context, key client.ObjectKey, obj client.Object) error {
+	var lv *topolsv1.LogicalVolume
+	var ok bool
+	if lv, ok = obj.(*topolsv1.LogicalVolume); !ok {
+		return r.getter.Get(ctx, key, obj)
+	}
+
+	err := r.cacheReader.Get(ctx, key, lv)
+	if err == nil {
+		return nil
+	}
+	if !apierrors.IsNotFound(err) {
+		return err
+	}
+	return r.apiReader.Get(ctx, key, lv)
+}
 
 // This type is a safe guard to prohibit calling List from LogicalVolumeService directly.
 type volumeGetter struct {
@@ -100,10 +132,12 @@ func NewLogicalVolumeService(mgr manager.Manager) (*LogicalVolumeService, error)
 		return nil, err
 	}
 
+	reader := clientwrapper.NewWrappedClient(mgr.GetClient())
+	apiReader := clientwrapper.NewWrappedReader(mgr.GetAPIReader(), mgr.GetClient().Scheme())
 	return &LogicalVolumeService{
-		writer:       mgr.GetClient(),
-		getter:       getter.NewRetryMissingGetter(mgr.GetClient(), mgr.GetAPIReader()),
-		volumeGetter: &volumeGetter{cacheReader: mgr.GetClient(), apiReader: mgr.GetAPIReader()},
+		writer:       reader,
+		getter:       newRetryMissingGetter(reader, apiReader),
+		volumeGetter: &volumeGetter{cacheReader: reader, apiReader: apiReader},
 	}, nil
 }
 
@@ -117,10 +151,6 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name 
 	// if the create volume request has no source, proceed with regular lv creation.
 	if sourceName == "" {
 		lv = &topolsv1.LogicalVolume{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "LogicalVolume",
-				APIVersion: "topols.kvaster.com/v1",
-			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
 			},
@@ -133,10 +163,6 @@ func (s *LogicalVolumeService) CreateVolume(ctx context.Context, node, dc, name 
 		}
 	} else {
 		lv = &topolsv1.LogicalVolume{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "LogicalVolume",
-				APIVersion: "topols.kvaster.com/v1",
-			},
 			ObjectMeta: metav1.ObjectMeta{
 				Name: name,
 			},
@@ -226,10 +252,6 @@ func (s *LogicalVolumeService) DeleteVolume(ctx context.Context, volumeID string
 func (s *LogicalVolumeService) CreateSnapshot(ctx context.Context, node, dc, sourceVol, sname, accessType string, snapSize resource.Quantity) (string, error) {
 	logger.Info("CreateSnapshot called", "name", sname)
 	snapshotLV := &topolsv1.LogicalVolume{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       "LogicalVolume",
-			APIVersion: "topols.kvaster.com/v1",
-		},
 		ObjectMeta: metav1.ObjectMeta{
 			Name: sname,
 		},

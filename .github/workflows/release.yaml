@@ -26,23 +26,16 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GHCR }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      - name: Cache go dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-${{ hashFiles('go.sum', 'Makefile') }}
+          restore-keys: |
+            go-
       - name: Build and push
-        uses: docker/build-push-action@v3
-        with:
-          push: true
-          tags: |
-            ghcr.io/kvaster/topols:latest
-            ghcr.io/kvaster/topols:${{ steps.check_version.outputs.version }}
-          build-args: |
-            TOPOLS_VERSION=${{ steps.check_version.outputs.version }}
-      - name: Build and push with sidecar
-        uses: docker/build-push-action@v3
-        with:
-          file: Dockerfile.with-sidecar
-          push: true
-          tags: |
-            ghcr.io/kvaster/topols-with-sidecar:latest
-            ghcr.io/kvaster/topols-with-sidecar:${{ steps.check_version.outputs.version }}
-          build-args: |
-            TOPOLS_VERSION=${{ steps.check_version.outputs.version }}
-            IMAGE_PREFIX=ghcr.io/kvaster/
+        run: make multi-platform-images PUSH=true TOPOLS_VERSION=${{ steps.check_version.outputs.version }} IMAGE_TAG=${{ steps.check_version.outputs.version }}

@@ -1,18 +1,19 @@
 # Build Container
-FROM golang:1.18-alpine AS build-env
+FROM --platform=$BUILDPLATFORM golang:1.19-alpine AS build-env
 
 # Get argment
 ARG TOPOLS_VERSION
+ARG TARGETARCH
 
 COPY . /workdir
 WORKDIR /workdir
 
-RUN touch csi/*.go docs/*.md \
-    && apk add --update make curl bash \
-    && make build-topols TOPOLS_VERSION=${TOPOLS_VERSION}
+RUN apk add --update make curl bash \
+    && touch csi/*.go docs/*.md \
+    && make build-topols TOPOLS_VERSION=${TOPOLS_VERSION} GOARCH=${TARGETARCH}
 
 # TopoLS container
-FROM alpine:edge
+FROM --platform=$TARGETPLATFORM alpine:edge
 
 RUN apk add --no-cache btrfs-progs
 
