@@ -36,7 +36,7 @@ PROTOC_GEN_DOC_VERSION := $(shell awk '/github.com\/pseudomuto\/protoc-gen-doc/ 
 PROTOC_GEN_GO_GRPC_VERSION := $(shell awk '/google.golang.org\/grpc\/cmd\/protoc-gen-go-grpc/ {print substr($$2, 2)}' go.mod)
 
 PUSH ?= false
-BUILDX_PUSH_OPTIONS := "-o type=tar,dest=build/topolvm.tar"
+BUILDX_PUSH_OPTIONS := "-o type=tar,dest=build/topols.tar"
 ifeq ($(PUSH),true)
 BUILDX_PUSH_OPTIONS := --push
 endif
@@ -160,7 +160,7 @@ create-docker-container: ## Create docker-container.
 	docker buildx create --use
 
 .PHONY: multiplatform-images
-multi-platform-images: ## Push multi-platform topolvm images.
+multi-platform-images: ## Push multi-platform topols images.
 	mkdir -p build
 	docker buildx build --no-cache $(BUILDX_PUSH_OPTIONS) \
 		--platform linux/amd64,linux/arm64/v8,linux/ppc64le \
@@ -174,6 +174,12 @@ multi-platform-images: ## Push multi-platform topolvm images.
 		--build-arg IMAGE_PREFIX=$(IMAGE_PREFIX) \
 		-f Dockerfile.with-sidecar \
 		.
+ifeq ($(PUSH),true)
+	docker tag $(IMAGE_PREFIX)topols:$(TOPOLS_VERSION) $(IMAGE_PREFIX)topols:latest
+	docker tag $(IMAGE_PREFIX)topols-with-sidecar:$(TOPOLS_VERSION) $(IMAGE_PREFIX)topols-with-sidecar:latest
+	docker push $(IMAGE_PREFIX)topols:latest
+	docker push $(IMAGE_PREFIX)topols-with-sidecar:latest
+endif
 
 .PHONY: tag
 tag: ## Tag topols images.
