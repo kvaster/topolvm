@@ -159,27 +159,28 @@ image: ## Build topols images.
 create-docker-container: ## Create docker-container.
 	docker buildx create --use
 
+BUILD_TAGS := -t $(IMAGE_PREFIX)topols:$(IMAGE_TAG)
+BUILD_TAGS_SIDECAR := -t $(IMAGE_PREFIX)topols-with-sidecar:$(IMAGE_TAG)
+ifeq ($(PUSH_LATEST),true)
+BUILD_TAGS := $(BUILD_TAGS) -t $(IMAGE_PREFIX)topols:latest
+BUILD_TAGS_SIDECAR := $(BUILD_TAGS_SIDECAR) -t $(IMAGE_PREFIX)topols-with-sidecar:latest
+endif
+
 .PHONY: multiplatform-images
 multi-platform-images: ## Push multi-platform topols images.
 	mkdir -p build
 	docker buildx build --no-cache $(BUILDX_PUSH_OPTIONS) \
 		--platform linux/amd64,linux/arm64/v8,linux/ppc64le \
-		-t $(IMAGE_PREFIX)topols:$(IMAGE_TAG) \
+		$(BUILD_TAGS) \
 		--build-arg TOPOLS_VERSION=$(TOPOLS_VERSION) \
 		.
 	docker buildx build --no-cache $(BUILDX_PUSH_OPTIONS) \
 		--platform linux/amd64,linux/arm64/v8,linux/ppc64le \
-		-t $(IMAGE_PREFIX)topols-with-sidecar:$(IMAGE_TAG) \
+		$(BUILD_TAGS_SIDECAR) \
 		--build-arg TOPOLS_VERSION=$(TOPOLS_VERSION) \
 		--build-arg IMAGE_PREFIX=$(IMAGE_PREFIX) \
 		-f Dockerfile.with-sidecar \
 		.
-ifeq ($(PUSH),true)
-	docker tag $(IMAGE_PREFIX)topols:$(TOPOLS_VERSION) $(IMAGE_PREFIX)topols:latest
-	docker tag $(IMAGE_PREFIX)topols-with-sidecar:$(TOPOLS_VERSION) $(IMAGE_PREFIX)topols-with-sidecar:latest
-	docker push $(IMAGE_PREFIX)topols:latest
-	docker push $(IMAGE_PREFIX)topols-with-sidecar:latest
-endif
 
 .PHONY: tag
 tag: ## Tag topols images.
