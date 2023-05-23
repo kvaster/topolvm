@@ -30,7 +30,7 @@ Follow the [documentation](https://docs.cert-manager.io/en/latest/getting-starte
 
 Before installing the chart, you must first install the cert-manager CustomResourceDefinition resources.
 
-```sh
+```bash
 kubectl apply -f https://github.com/jetstack/cert-manager/releases/download/v1.7.0/cert-manager.crds.yaml
 ```
 
@@ -50,7 +50,7 @@ You can prepare the certificate manually without `cert-manager`.
 2. Base64-encode the CA cert (in its PEM format)
 3. Create Secret in `topols-system` namespace as follows:
 
-    ```console
+    ```bash
     kubectl -n topols-system create secret tls topols-mutatingwebhook \
         --cert=<CERTIFICATE FILE> --key=<KEY FILE>
     ```
@@ -93,23 +93,23 @@ Otherwise, `topols-scheduler` should be run as Deployment and Service.
 Set the `scheduler.type=daemonset` in the Helm Chart values.
 The default is daemonset.
 
-    ```yaml
-    <snip>
-    scheduler:
-      type: daemonset
-    <snip>
-    ```
+```yaml
+<snip>
+scheduler:
+  type: daemonset
+<snip>
+```
 
 #### Running topols-scheduler using Deployment and Service
 
 In this case, you can set the `scheduler.type=deployment` in the Helm Chart values.
 
-    ```yaml
-    <snip>
-    scheduler:
-      type: deployment
-    <snip>
-    ```
+```yaml
+<snip>
+scheduler:
+  type: deployment
+<snip>
+```
 
 This way, `topols-scheduler` is exposed by LoadBalancer service.
 
@@ -144,7 +144,7 @@ scheduler:
 
 Besides, the scoring weight can be passed to kube-scheduler via [scheduler-config.yaml](./scheduler-config/scheduler-config.yaml). Almost all scoring algorithms in kube-scheduler are weighted as `"weight": 1`. So if you want to give a priority to the scoring by `topols-scheduler`, you have to set the weight as a value larger than one like as follows:
 ```yaml
-apiVersion: kubescheduler.config.k8s.io/v1beta2
+apiVersion: kubescheduler.config.k8s.io/v1beta3
 kind: KubeSchedulerConfiguration
 leaderElection:
   leaderElect: true
@@ -174,20 +174,20 @@ You can see the limitations of using Storage Capacity Tracking from [here](https
 If you want to use Storage Capacity Tracking instead of using topols-scheduler,
 you need to set the `controller.storageCapacityTracking.enabled=true`, `scheduler.enabled=false` and `webhook.podMutatingWebhook.enabled=false` in the Helm Chart values.
 
-    ```yaml
-    <snip>
-    controller:
-      storageCapacityTracking:
-        enabled: true
-    <snip>
-    scheduler:
-      enabled: false
-    <snip>
-    webhook:
-      podMutatingWebhook:
-        enabled: false
-    <snip>
-    ```
+```yaml
+<snip>
+controller:
+  storageCapacityTracking:
+    enabled: true
+<snip>
+scheduler:
+  enabled: false
+<snip>
+webhook:
+  podMutatingWebhook:
+    enabled: false
+<snip>
+```
 
 ## Configure StorageClasses
 
@@ -227,7 +227,7 @@ helm repo add topols https://kvaster.github.io/topols
 
 Install Helm Chart using the configured values.yaml.
 
-```sh
+```bash
 helm upgrade --namespace=topols-system -f values.yaml -i topols topols/topols
 ```
 
@@ -238,7 +238,7 @@ helm upgrade --namespace=topols-system -f values.yaml -i topols topols/topols
 You need to copy `deploy/sheduler-config/scheduler-config.yaml` to `kube-scheduler`s config directory.
 Usually it is located at `/etc/kubernetes` when you're deploying kubernetes with kubeadm.
 
-```console
+```bash
 cp ./deploy/sheduler-config/scheduler-config.yaml /etc/kubernetes/
 ```
 
@@ -251,7 +251,7 @@ apiVersion: kubeadm.k8s.io/v1
 kind: ClusterConfiguration
 metadata:
   name: config
-kubernetesVersion: v1.25.3
+kubernetesVersion: v1.26.3
 scheduler:
   extraVolumes:
     - name: "scheduler-config"

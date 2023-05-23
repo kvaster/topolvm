@@ -3,17 +3,15 @@ package cmd
 import (
 	"context"
 	"fmt"
-	clientwrapper "github.com/kvaster/topols/client"
 	"net"
-	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"time"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kvaster/topols"
 	topolsv1 "github.com/kvaster/topols/api/v1"
+	clientwrapper "github.com/kvaster/topols/client"
 	"github.com/kvaster/topols/controllers"
-	"github.com/kvaster/topols/csi"
 	"github.com/kvaster/topols/driver"
-	"github.com/kvaster/topols/driver/k8s"
 	"github.com/kvaster/topols/hook"
 	"github.com/kvaster/topols/runners"
 	"google.golang.org/grpc"
@@ -23,6 +21,7 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	//+kubebuilder:scaffold:imports
@@ -79,6 +78,7 @@ func subMain() error {
 	dec, _ := admission.NewDecoder(scheme)
 	wh := mgr.GetWebhookServer()
 	wh.Register("/pod/mutate", hook.PodMutator(reader, apiReader, dec))
+	wh.Register("/pvc/mutate", hook.PVCMutator(reader, apiReader, dec))
 
 	// register controllers
 	nodecontroller := controllers.NewNodeReconciler(reader, config.skipNodeFinalize)
@@ -87,7 +87,7 @@ func subMain() error {
 		return err
 	}
 
-	pvccontroller := controllers.NewPersistentVolumeClaimReconciler(reader)
+	pvccontroller := controllers.NewPersistentVolumeClaimReconciler(reader, apiReader)
 	if err := pvccontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")
 		return err
@@ -110,15 +110,13 @@ func subMain() error {
 	}
 
 	// Add gRPC server to manager.
-	s, err := k8s.NewLogicalVolumeService(mgr)
+	grpcServer := grpc.NewServer()
+	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityServer(checker.Ready))
+	controllerSever, err := driver.NewControllerServer(mgr)
 	if err != nil {
 		return err
 	}
-	n := k8s.NewNodeService(reader)
-
-	grpcServer := grpc.NewServer()
-	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService(checker.Ready))
-	csi.RegisterControllerServer(grpcServer, driver.NewControllerService(s, n))
+	csi.RegisterControllerServer(grpcServer, controllerSever)
 
 	// gRPC service itself should run even when the manager is *not* a leader
 	// because CSI sidecar containers choose a leader.

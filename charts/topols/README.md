@@ -98,7 +98,7 @@ You need to configure kube-scheduler to use topols-scheduler extender by referri
 | controller.prometheus.podMonitor.scrapeTimeout | string | `""` | Scrape timeout. If not set, the Prometheus default scrape timeout is used. |
 | controller.replicaCount | int | `2` | Number of replicas for CSI controller service. |
 | controller.securityContext.enabled | bool | `true` | Enable securityContext. |
-| controller.storageCapacityTracking.enabled | bool | `false` | Enable Storage Capacity Tracking for csi-provisoner. |
+| controller.storageCapacityTracking.enabled | bool | `false` | Enable Storage Capacity Tracking for csi-provisioner. |
 | controller.terminationGracePeriodSeconds | int | `nil` | Specify terminationGracePeriodSeconds. |
 | controller.tolerations | list | `[]` | Specify tolerations. # ref: https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/ |
 | controller.updateStrategy | object | `{}` | Specify updateStrategy. |
@@ -109,6 +109,7 @@ You need to configure kube-scheduler to use topols-scheduler extender by referri
 | image.csi.livenessProbe | string | `nil` | Specify livenessprobe image. If not specified, `ghcr.io/kvaster/topols-with-sidecar:{{ .Values.image.tag }}` will be used. |
 | image.csi.nodeDriverRegistrar | string | `nil` | Specify csi-node-driver-registrar: image. If not specified, `ghcr.io/kvaster/topols-with-sidecar:{{ .Values.image.tag }}` will be used. |
 | image.pullPolicy | string | `nil` | TopoLS image pullPolicy. |
+| image.pullSecrets | list | `[]` | List of imagePullSecrets. |
 | image.repository | string | `"ghcr.io/kvaster/topols-with-sidecar"` | TopoLS |
 | image.tag | string | `{{ .Chart.AppVersion }}` | TopoLS image tag to use. |
 | node.args | list | `[]` | Arguments to be passed to the command. |
@@ -165,10 +166,11 @@ You need to configure kube-scheduler to use topols-scheduler extender by referri
 | securityContext.runAsGroup | int | `10000` | Specify runAsGroup. |
 | securityContext.runAsUser | int | `10000` | Specify runAsUser. |
 | snapshot.enabled | bool | `true` | Turn on the snapshot feature. |
-| storageClasses | list | `[{"name":"topols","storageClass":{"additionalParameters":{},"allowVolumeExpansion":true,"annotations":{},"isDefaultClass":false,"reclaimPolicy":null,"volumeBindingMode":"WaitForFirstConsumer"}}]` | Whether to create storageclass(s) ref: https://kubernetes.io/docs/concepts/storage/storage-classes/ |
+| storageClasses | list | `[{"name":"topols","storageClass":{"additionalParameters":{},"allowVolumeExpansion":true,"annotations":{},"isDefaultClass":false,"reclaimPolicy":null,"volumeBindingMode":"WaitForFirstConsumer"}}]` | Whether to create storageclass(es) ref: https://kubernetes.io/docs/concepts/storage/storage-classes/ |
 | webhook.caBundle | string | `nil` | Specify the certificate to be used for AdmissionWebhook. |
 | webhook.existingCertManagerIssuer | object | `{}` | Specify the cert-manager issuer to be used for AdmissionWebhook. |
 | webhook.podMutatingWebhook.enabled | bool | `true` | Enable Pod MutatingWebhook. |
+| webhook.pvcMutatingWebhook.enabled | bool | `true` | Enable PVC MutatingWebhook. |
 
 ## Generate Manifests
 

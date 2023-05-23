@@ -3,18 +3,19 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"github.com/kvaster/topols/lsm"
-	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/go-logr/logr"
 	"github.com/kvaster/topols"
 	topolsv1 "github.com/kvaster/topols/api/v1"
+	"github.com/kvaster/topols/lsm"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -57,9 +58,9 @@ func (r *LogicalVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	if lv.ObjectMeta.DeletionTimestamp == nil {
-		if !containsString(lv.Finalizers, topols.LogicalVolumeFinalizer) {
+		if !controllerutil.ContainsFinalizer(lv, topols.LogicalVolumeFinalizer) {
 			lv2 := lv.DeepCopy()
-			lv2.Finalizers = append(lv2.Finalizers, topols.LogicalVolumeFinalizer)
+			controllerutil.AddFinalizer(lv2, topols.LogicalVolumeFinalizer)
 			patch := client.MergeFrom(lv)
 			if err := r.Patch(ctx, lv2, patch); err != nil {
 				log.Error(err, "failed to add finalizer", "name", lv.Name)
@@ -98,7 +99,7 @@ func (r *LogicalVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	// finalization
-	if !containsString(lv.Finalizers, topols.LogicalVolumeFinalizer) {
+	if !controllerutil.ContainsFinalizer(lv, topols.LogicalVolumeFinalizer) {
 		// Our finalizer has finished, so the reconciler can do nothing.
 		return ctrl.Result{}, nil
 	}
@@ -110,7 +111,7 @@ func (r *LogicalVolumeReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 	}
 
 	lv2 := lv.DeepCopy()
-	lv2.Finalizers = removeString(lv2.Finalizers, topols.LogicalVolumeFinalizer)
+	controllerutil.RemoveFinalizer(lv2, topols.LogicalVolumeFinalizer)
 	patch := client.MergeFrom(lv)
 	if err := r.Patch(ctx, lv2, patch); err != nil {
 		log.Error(err, "failed to remove finalizer", "name", lv.Name)
@@ -187,6 +188,7 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 		}
 		if found {
 			log.Info("set volumeID to existing LogicalVolume", "name", lv.Name, "uid", lv.UID, "status.volumeID", lv.Status.VolumeID)
+			// Don't set CurrentSize here because the Spec.Size field may be updated after the LVM LV is created.
 			lv.Status.VolumeID = string(lv.UID)
 			lv.Status.Code = codes.OK
 			lv.Status.Message = ""
@@ -254,18 +256,19 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 }
 
 func (r *LogicalVolumeReconciler) expandLV(ctx context.Context, log logr.Logger, lv *topolsv1.LogicalVolume) error {
-	// lv.Status.CurrentSize is added in v0.4.0 and filled by topols-controller when resizing is triggered.
-	// The reconciliation loop of LogicalVolume may call expandLV before resizing is triggered.
-	// So, lv.Status.CurrentSize could be nil here.
-	if lv.Status.CurrentSize == nil {
+	// We denote unknown size as -1.
+	var origBytes int64 = -1
+	switch {
+	case lv.Status.CurrentSize == nil:
+		// topols-node may be crashed before setting Status.CurrentSize.
+		// Since the actual volume size is unknown,
+		// we need to do resizing to set Status.CurrentSize to the same value as Spec.Size.
+	case lv.Spec.Size.Cmp(*lv.Status.CurrentSize) <= 0:
 		return nil
+	default:
+		origBytes = (*lv.Status.CurrentSize).Value()
 	}
 
-	if lv.Spec.Size.Cmp(*lv.Status.CurrentSize) <= 0 {
-		return nil
-	}
-
-	origBytes := (*lv.Status.CurrentSize).Value()
 	reqBytes := lv.Spec.Size.Value()
 
 	err := func() error {
@@ -330,25 +333,6 @@ func (f logicalVolumeFilter) Update(e event.UpdateEvent) bool {
 
 func (f logicalVolumeFilter) Generic(e event.GenericEvent) bool {
 	return f.filter(e.Object.(*topolsv1.LogicalVolume))
-}
-
-func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
-func removeString(slice []string, s string) (result []string) {
-	for _, item := range slice {
-		if item == s {
-			continue
-		}
-		result = append(result, item)
-	}
-	return
 }
 
 func extractFromError(err error) (codes.Code, string) {

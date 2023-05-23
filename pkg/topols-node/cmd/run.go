@@ -3,13 +3,12 @@ package cmd
 import (
 	"context"
 	"errors"
+	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kvaster/topols"
 	topolsv1 "github.com/kvaster/topols/api/v1"
 	clientwrapper "github.com/kvaster/topols/client"
 	"github.com/kvaster/topols/controllers"
-	"github.com/kvaster/topols/csi"
 	"github.com/kvaster/topols/driver"
-	"github.com/kvaster/topols/driver/k8s"
 	"github.com/kvaster/topols/lsm"
 	"github.com/kvaster/topols/runners"
 	"github.com/spf13/viper"
@@ -58,16 +57,16 @@ func subMain() error {
 	reader := clientwrapper.NewWrappedClient(mgr.GetClient())
 	apiReader := clientwrapper.NewWrappedReader(mgr.GetAPIReader(), mgr.GetClient().Scheme())
 
-	lvmc, err := lsm.New(config.poolPath)
+	lsmc, err := lsm.New(config.poolPath)
 	if err != nil {
 		setupLog.Error(err, "unable to create ls client")
 		return err
 	}
-	if err := mgr.Add(lvmc); err != nil {
+	if err := mgr.Add(lsmc); err != nil {
 		return err
 	}
 
-	lvcontroller := controllers.NewLogicalVolumeReconciler(reader, lvmc, nodename)
+	lvcontroller := controllers.NewLogicalVolumeReconciler(reader, lsmc, nodename)
 	if err := lvcontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "LogicalVolume")
 		return err
@@ -83,18 +82,18 @@ func subMain() error {
 	// Add metrics exporter to manager.
 	// Note that grpc.ClientConn can be shared with multiple stubs/services.
 	// https://github.com/grpc/grpc-go/tree/master/examples/features/multiplex
-	if err := mgr.Add(runners.NewMetricsExporter(reader, lvmc, nodename)); err != nil {
+	if err := mgr.Add(runners.NewMetricsExporter(reader, lsmc, nodename)); err != nil {
 		return err
 	}
 
 	// Add gRPC server to manager.
-	s, err := k8s.NewLogicalVolumeService(mgr)
+	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(ErrorLoggingInterceptor))
+	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityServer(checker.Ready))
+	nodeServer, err := driver.NewNodeServer(nodename, lsmc, mgr)
 	if err != nil {
 		return err
 	}
-	grpcServer := grpc.NewServer(grpc.UnaryInterceptor(ErrorLoggingInterceptor))
-	csi.RegisterIdentityServer(grpcServer, driver.NewIdentityService(checker.Ready))
-	csi.RegisterNodeServer(grpcServer, driver.NewNodeService(nodename, lvmc, s))
+	csi.RegisterNodeServer(grpcServer, nodeServer)
 	err = mgr.Add(runners.NewGRPCRunner(grpcServer, config.csiSocket, false))
 	if err != nil {
 		return err

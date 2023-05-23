@@ -4,13 +4,13 @@ image:
 
   # image.tag -- TopoLS image tag to use.
   # @default -- `{{ .Chart.AppVersion }}`
-  tag:  # 0.10.3
+  tag:  # 0.19.0
 
   # image.pullPolicy -- TopoLS image pullPolicy.
   pullPolicy:  # Always
 
-  # image.pullSecret -- image pull secret name
-  #pullSecret:
+  # image.pullSecrets -- List of imagePullSecrets.
+  pullSecrets: []
 
   csi:
     # image.csi.nodeDriverRegistrar -- Specify csi-node-driver-registrar: image.
@@ -258,7 +258,7 @@ controller:
   args: []
 
   storageCapacityTracking:
-    # controller.storageCapacityTracking.enabled -- Enable Storage Capacity Tracking for csi-provisoner.
+    # controller.storageCapacityTracking.enabled -- Enable Storage Capacity Tracking for csi-provisioner.
     enabled: false
 
   securityContext:
@@ -426,7 +426,7 @@ resources:
   #    memory: "200Mi"
   #    cpu: "200m"
 
-# storageClasses -- Whether to create storageclass(s)
+# storageClasses -- Whether to create storageclass(es)
 # ref: https://kubernetes.io/docs/concepts/storage/storage-classes/
 storageClasses:
   - name: topols  # Defines name of storage class.
@@ -455,6 +455,9 @@ webhook:
     # name: webhook-issuer
   podMutatingWebhook:
     # webhook.podMutatingWebhook.enabled -- Enable Pod MutatingWebhook.
+    enabled: true
+  pvcMutatingWebhook:
+    # webhook.pvcMutatingWebhook.enabled -- Enable PVC MutatingWebhook.
     enabled: true
 
 # Container Security Context

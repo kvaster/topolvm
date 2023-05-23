@@ -11,6 +11,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -53,14 +54,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 		return ctrl.Result{}, nil
 	}
 
-	needFinalize := false
-	for _, fin := range node.Finalizers {
-		if fin == topols.NodeFinalizer {
-			needFinalize = true
-			break
-		}
-	}
-	if !needFinalize {
+	if !controllerutil.ContainsFinalizer(node, topols.NodeFinalizer) {
 		return ctrl.Result{}, nil
 	}
 
@@ -69,15 +63,7 @@ func (r *NodeReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.
 	}
 
 	node2 := node.DeepCopy()
-	finalizers := node2.Finalizers[:0]
-	for _, fin := range node.Finalizers {
-		if fin == topols.NodeFinalizer {
-			continue
-		}
-		finalizers = append(finalizers, fin)
-	}
-	node2.Finalizers = finalizers
-
+	controllerutil.RemoveFinalizer(node2, topols.NodeFinalizer)
 	patch := client.MergeFrom(node)
 	if err := r.Patch(ctx, node2, patch); err != nil {
 		log.Error(err, "failed to remove finalizer", "name", node.Name)
@@ -156,25 +142,9 @@ func (r *NodeReconciler) doFinalize(ctx context.Context, log logr.Logger, node *
 }
 
 func (r *NodeReconciler) cleanupLogicalVolume(ctx context.Context, log logr.Logger, lv *topolsv1.LogicalVolume) error {
-	finExists := false
-	for _, fin := range lv.Finalizers {
-		if fin == topols.LogicalVolumeFinalizer {
-			finExists = true
-			break
-		}
-	}
-
-	if finExists {
+	if controllerutil.ContainsFinalizer(lv, topols.LogicalVolumeFinalizer) {
 		lv2 := lv.DeepCopy()
-		var finalizers []string
-		for _, fin := range lv2.Finalizers {
-			if fin == topols.LogicalVolumeFinalizer {
-				continue
-			}
-			finalizers = append(finalizers, fin)
-		}
-		lv2.Finalizers = finalizers
-
+		controllerutil.RemoveFinalizer(lv2, topols.LogicalVolumeFinalizer)
 		patch := client.MergeFrom(lv)
 		if err := r.Patch(ctx, lv2, patch); err != nil {
 			log.Error(err, "failed to patch LogicalVolume", "name", lv.Name)

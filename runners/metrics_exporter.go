@@ -3,6 +3,7 @@ package runners
 import (
 	"context"
 	"github.com/kvaster/topols/lsm"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strconv"
 	"strings"
 	"time"
@@ -26,14 +27,14 @@ type metricsExporter struct {
 	nodeName       string
 	availableBytes *prometheus.GaugeVec
 	sizeBytes      *prometheus.GaugeVec
-	lvmc           lsm.Client
+	lsmc           lsm.Client
 }
 
 var _ manager.LeaderElectionRunnable = &metricsExporter{}
 
 // NewMetricsExporter creates controller-runtime's manager.Runnable to run
 // a metrics exporter for a node.
-func NewMetricsExporter(client client.Client, lvmc lsm.Client, nodeName string) manager.Runnable {
+func NewMetricsExporter(client client.Client, lsmc lsm.Client, nodeName string) manager.Runnable {
 	availableBytes := prometheus.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace:   metricsNamespace,
 		Subsystem:   "volumegroup",
@@ -57,7 +58,7 @@ func NewMetricsExporter(client client.Client, lvmc lsm.Client, nodeName string) 
 		nodeName:       nodeName,
 		availableBytes: availableBytes,
 		sizeBytes:      sizeBytes,
-		lvmc:           lvmc,
+		lsmc:           lsmc,
 	}
 }
 
@@ -76,7 +77,7 @@ func (m *metricsExporter) Start(ctx context.Context) error {
 		}
 	}()
 
-	watch := m.lvmc.Watch()
+	watch := m.lsmc.Watch()
 
 	// make first update as soon as we start
 	// cause node Finalizer is updated here and it's not good...
@@ -111,7 +112,7 @@ func (m *metricsExporter) NeedLeaderElection() bool {
 }
 
 func (m *metricsExporter) updateNode(ctx context.Context, ch chan<- *lsm.DeviceClassStats) error {
-	stats, err := m.lvmc.NodeStats()
+	stats, err := m.lsmc.NodeStats()
 
 	if err != nil {
 		return err
@@ -133,16 +134,7 @@ func (m *metricsExporter) updateNode(ctx context.Context, ch chan<- *lsm.DeviceC
 
 	node2 := node.DeepCopy()
 
-	var hasFinalizer bool
-	for _, fin := range node.Finalizers {
-		if fin == topols.NodeFinalizer {
-			hasFinalizer = true
-			break
-		}
-	}
-	if !hasFinalizer {
-		node2.Finalizers = append(node2.Finalizers, topols.NodeFinalizer)
-	}
+	controllerutil.AddFinalizer(node2, topols.NodeFinalizer)
 
 	if stats.Default != nil {
 		node2.Annotations[topols.DefaultDeviceClassKey] = stats.Default.DeviceClass

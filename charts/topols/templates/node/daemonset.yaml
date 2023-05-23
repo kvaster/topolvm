@@ -25,11 +25,11 @@ spec:
       {{- with .Values.node.priorityClassName }}
       priorityClassName: {{ . }}
       {{- end }}
-      serviceAccountName: {{ template "topols.fullname" . }}-node
-      {{- with .Values.image.pullSecret}}
+      {{- with .Values.image.pullSecrets }}
       imagePullSecrets:
-      - name: {{ . }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
+      serviceAccountName: {{ template "topols.fullname" . }}-node
       containers:
         - name: topols-node
           image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
@@ -137,6 +137,10 @@ spec:
           command:
             - /livenessprobe
             - --csi-address={{ .Values.node.kubeletWorkDirectory }}/plugins/topols.kvaster.com/node/csi-topols.sock
+            - --http-endpoint=:9808
+          ports:
+            - containerPort: 9808
+              name: livenessprobe
           {{- with .Values.resources.liveness_probe }}
           resources: {{ toYaml . | nindent 12 }}
           {{- end }}

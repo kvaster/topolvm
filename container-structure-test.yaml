@@ -1,0 +1,39 @@
+schemaVersion: '2.0.0'
+metadataTest:
+  entrypoint: ["/hypertopols"]
+fileExistenceTests:
+- name: '/LICENSE'
+  path: '/LICENSE'
+  shouldExist: true
+- name: '/hypertopols'
+  path: '/hypertopols'
+  shouldExist: true
+  isExecutableBy: 'owner'
+- name: '/topols-scheduler'
+  path: '/topols-scheduler'
+  shouldExist: true
+  isExecutableBy: 'owner'
+- name: '/topols-node'
+  path: '/topols-node'
+  shouldExist: true
+  isExecutableBy: 'owner'
+- name: '/topols-controller'
+  path: '/topols-controller'
+  shouldExist: true
+  isExecutableBy: 'owner'
+- name: '/bin/mount'
+  path: '/bin/mount'
+  shouldExist: true
+  isExecutableBy: 'owner'
+- name: '/bin/mountpoint'
+  path: '/bin/mountpoint'
+  shouldExist: true
+  isExecutableBy: 'owner'
+- name: '/bin/umount'
+  path: '/bin/umount'
+  shouldExist: true
+  isExecutableBy: 'owner'
+- name: '/sbin/btrfs'
+  path: '/sbin/btrfs'
+  shouldExist: true
+  isExecutableBy: 'owner'

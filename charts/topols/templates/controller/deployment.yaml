@@ -32,11 +32,11 @@ spec:
       {{- with .Values.controller.priorityClassName }}
       priorityClassName: {{ . }}
       {{- end }}
-      serviceAccountName: {{ template "topols.fullname" . }}-controller
-      {{- with .Values.image.pullSecret}}
+      {{- with .Values.image.pullSecrets }}
       imagePullSecrets:
-      - name: {{ . }}
+        {{- toYaml . | nindent 8 }}
       {{- end }}
+      serviceAccountName: {{ template "topols.fullname" . }}-controller
       containers:
         - name: topols-controller
           image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
@@ -105,10 +105,14 @@ spec:
             - --feature-gates=Topology=true
             - --leader-election
             - --leader-election-namespace={{ .Release.Namespace }}
+            - --http-endpoint=:9809
             {{- with .Values.controller.storageCapacityTracking.enabled }}
             - --enable-capacity
             - --capacity-ownerref-level=2
             {{- end }}
+          ports:
+            - containerPort: 9809
+              name: csi-provisioner
           {{- with .Values.controller.storageCapacityTracking.enabled }}
           env:
             - name: NAMESPACE
@@ -141,6 +145,10 @@ spec:
             - --csi-address=/run/topols/csi-topols.sock
             - --leader-election
             - --leader-election-namespace={{ .Release.Namespace }}
+            - --http-endpoint=:9810
+          ports:
+            - containerPort: 9810
+              name: csi-resizer
           volumeMounts:
             - name: socket-dir
               mountPath: /run/topols
@@ -163,6 +171,10 @@ spec:
           - --csi-address=/run/topols/csi-topols.sock
           - --leader-election
           - --leader-election-namespace={{ .Release.Namespace }}
+            - --http-endpoint=:9811
+          ports:
+            - containerPort: 9811
+              name: csi-snapshotter
           volumeMounts:
           - name: socket-dir
             mountPath: /run/topols
@@ -180,6 +192,10 @@ spec:
           command:
             - /livenessprobe
             - --csi-address=/run/topols/csi-topols.sock
+            - --http-endpoint=:9808
+          ports:
+            - containerPort: 9808
+              name: livenessprobe
           volumeMounts:
             - name: socket-dir
               mountPath: /run/topols
