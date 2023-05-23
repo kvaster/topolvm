@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"github.com/kvaster/topols"
 	"path/filepath"
 	"testing"
 	"time"
@@ -10,8 +11,6 @@ import (
 	topolsv1 "github.com/kvaster/topols/api/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/topolvm/topolvm"
-	testingutil "github.com/topolvm/topolvm/util/testing"
 	"google.golang.org/grpc/codes"
 
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -41,7 +40,6 @@ var testEnv *envtest.Environment
 var testCtx, testCancel = context.WithCancel(context.Background())
 
 func TestAPIs(t *testing.T) {
-	testingutil.DoEnvCheck(t)
 	RegisterFailHandler(Fail)
 
 	SetDefaultEventuallyPollingInterval(time.Second)
@@ -103,7 +101,7 @@ func currentLV(i int) *topolsv1.LogicalVolume {
 		Spec: topolsv1.LogicalVolumeSpec{
 			Name:        fmt.Sprintf("current-%d", i),
 			NodeName:    fmt.Sprintf("node-%d", i),
-			DeviceClass: topolvm.DefaultDeviceClassName,
+			DeviceClass: topols.DefaultDeviceClassName,
 			Size:        *resource.NewQuantity(1<<30, resource.BinarySI),
 			Source:      fmt.Sprintf("source-%d", i),
 			AccessType:  "rw",

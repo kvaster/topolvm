@@ -44,6 +44,8 @@ spec:
                 type: string
               name:
                 type: string
+              noCow:
+                type: boolean
               nodeName:
                 type: string
               size:

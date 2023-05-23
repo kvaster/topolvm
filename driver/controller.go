@@ -9,6 +9,7 @@ import (
 	v1 "github.com/kvaster/topols/api/v1"
 	"github.com/kvaster/topols/driver/internal/k8s"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"strconv"
 	"strings"
 	"time"
 
@@ -114,10 +115,12 @@ func (s controllerServerNoLocked) CreateVolume(ctx context.Context, req *csi.Cre
 	capabilities := req.GetVolumeCapabilities()
 	source := req.GetVolumeContentSource()
 	deviceClass := req.GetParameters()[topols.DeviceClassKey]
+	noCow, _ := strconv.ParseBool(req.GetParameters()[topols.NoCowKey])
 
 	ctrlLogger.Info("CreateVolume called",
 		"name", req.GetName(),
 		"device_class", deviceClass,
+		"no_cow", noCow,
 		"required", req.GetCapacityRange().GetRequiredBytes(),
 		"limit", req.GetCapacityRange().GetLimitBytes(),
 		"parameters", req.GetParameters(),
@@ -186,6 +189,7 @@ func (s controllerServerNoLocked) CreateVolume(ctx context.Context, req *csi.Cre
 			return nil, status.Error(codes.InvalidArgument, "device class mismatch. Snapshots should be created with the same device class as the source.")
 		}
 		deviceClass = sourceVol.Spec.DeviceClass
+		noCow = sourceVol.Spec.NoCow
 		sourceName = sourceVol.Spec.Name
 	}
 
@@ -273,7 +277,7 @@ func (s controllerServerNoLocked) CreateVolume(ctx context.Context, req *csi.Cre
 
 	name = strings.ToLower(name)
 
-	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceClass, name, sourceName, requestBytes)
+	volumeID, err := s.lvService.CreateVolume(ctx, node, deviceClass, noCow, name, sourceName, requestBytes)
 	if err != nil {
 		_, ok := status.FromError(err)
 		if !ok {

@@ -108,9 +108,6 @@ func (c *wrappedClient) Update(ctx context.Context, obj client.Object, opts ...c
 	return c.client.Update(ctx, obj, opts...)
 }
 
-// wrappedClient assumes that LogicalVolume definitions on topolvm.io and topolvm.cybozu.com are identical.
-// Since patch processes resources as Objects, even if the structs are different, if the Spec and Status are the same, there is no problem with patch processing.
-// ref: https://github.com/kubernetes-sigs/controller-runtime/blob/v0.12.1/pkg/client/patch.go#L114
 func (c *wrappedClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 	switch obj.(type) {
 	case *unstructured.Unstructured:
@@ -161,14 +158,14 @@ type wrappedSubResourceClient struct {
 var _ client.SubResourceClient = &wrappedSubResourceClient{}
 
 func (c *wrappedSubResourceClient) Get(ctx context.Context, obj client.Object, subResource client.Object, opts ...client.SubResourceGetOption) error {
-	// - This method is currently not used in TopoLVM.
+	// - This method is currently not used in TopoLS.
 	// - To implement this method, tests are required, but there are no similar tests
 	//   implemented in the upstream code, and we will need a lot of effort to study it.
 	return fmt.Errorf("wrappedSubResourceClient.Get is not implemented")
 }
 
 func (c *wrappedSubResourceClient) Create(ctx context.Context, obj client.Object, subResource client.Object, opts ...client.SubResourceCreateOption) error {
-	// - This method is currently not used in TopoLVM.
+	// - This method is currently not used in TopoLS.
 	// - To implement this method, tests are required, but there are no similar tests
 	//   implemented in the upstream code, and we will need a lot of effort to study it.
 	return fmt.Errorf("wrappedSubResourceClient.Create is not implemented")
@@ -187,9 +184,6 @@ func (c *wrappedSubResourceClient) Update(ctx context.Context, obj client.Object
 	return sc.Update(ctx, obj, opts...)
 }
 
-// wrappedClient assumes that LogicalVolume definitions on topolvm.io and topolvm.cybozu.com are identical.
-// Since patch processes resources as Objects, even if the structs are different, if the Spec and Status are the same, there is no problem with patch processing.
-// ref: https://github.com/kubernetes-sigs/controller-runtime/blob/v0.12.1/pkg/client/patch.go#L114
 func (c *wrappedSubResourceClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
 	sc := c.client.SubResource(c.subResource)
 	switch obj.(type) {

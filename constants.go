@@ -17,6 +17,9 @@ const TopologyNodeKey = "topology.topols.kvaster.com/node"
 // DeviceClassKey is the key used in CSI volume create requests to specify a device-class.
 const DeviceClassKey = "topols.kvaster.com/device-class"
 
+// NoCowKey is the key used in CSI volume create requests to specify no-cow property of filesystem
+const NoCowKey = "topols.kvaster.com/no-cow"
+
 // ResizeRequestedAtKey is the key of LogicalVolume that represents the timestamp of the resize request.
 const ResizeRequestedAtKey = "topols.kvaster.com/resize-requested-at"
 

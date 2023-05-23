@@ -444,6 +444,7 @@ storageClasses:
       allowVolumeExpansion: true
       additionalParameters: {}
       # "topols.kvaster.com/device-class": "ssd"
+      # "topols.kvaster.com/no-cow": "true"
 
 webhook:
   # webhook.caBundle -- Specify the certificate to be used for AdmissionWebhook.

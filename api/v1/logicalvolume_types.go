@@ -18,6 +18,7 @@ type LogicalVolumeSpec struct {
 	NodeName    string            `json:"nodeName"`
 	Size        resource.Quantity `json:"size"`
 	DeviceClass string            `json:"deviceClass,omitempty"`
+	NoCow       bool              `json:"noCow,omitempty"`
 
 	// 'source' specifies the logicalvolume name of the source; if present.
 	// This field is populated only when LogicalVolume has a source.

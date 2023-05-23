@@ -3,19 +3,20 @@ package lsm
 import (
 	"context"
 	"errors"
-	"github.com/fsnotify/fsnotify"
 	"io"
-	"k8s.io/apimachinery/pkg/api/resource"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sigs.k8s.io/yaml"
 	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/fsnotify/fsnotify"
+	chattr "github.com/g0rbe/go-chattr"
+	"k8s.io/apimachinery/pkg/api/resource"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/yaml"
 )
 
 var btrfsLogger = ctrl.Log.WithName("lsm").WithName("btrfs")
@@ -93,7 +94,7 @@ func (c *btrfs) GetLVList(deviceClass string) ([]*LogicalVolume, error) {
 	return volumes, nil
 }
 
-func (c *btrfs) CreateLV(name, deviceClass string, size uint64) (*LogicalVolume, error) {
+func (c *btrfs) CreateLV(name, deviceClass string, noCow bool, size uint64) (*LogicalVolume, error) {
 	btrfsLogger.Info("CreateLV", "Name", name, "DeviceClass", deviceClass, "Size", size)
 
 	c.mu.Lock()
@@ -116,6 +117,19 @@ func (c *btrfs) CreateLV(name, deviceClass string, size uint64) (*LogicalVolume,
 	if err != nil {
 		_ = removeSubvol(path)
 		return nil, err
+	}
+
+	if noCow {
+		f, err := os.OpenFile(path, os.O_RDONLY, 0666)
+		if err == nil {
+			defer func() { _ = f.Close() }()
+			err = chattr.SetAttr(f, chattr.FS_NOCOW_FL)
+		}
+
+		if err != nil {
+			_ = removeSubvol(path)
+			return nil, err
+		}
 	}
 
 	dc.Volumes = append(dc.Volumes, v)

@@ -24,7 +24,7 @@ import (
 type LogicalVolumeReconciler struct {
 	client.Client
 	nodeName string
-	lvmc     lsm.Client
+	lsmc     lsm.Client
 }
 
 //+kubebuilder:rbac:groups=topols.kvaster.com,resources=logicalvolumes,verbs=get;list;watch;update;patch
@@ -35,7 +35,7 @@ func NewLogicalVolumeReconciler(client client.Client, lvmc lsm.Client, nodeName 
 	return &LogicalVolumeReconciler{
 		Client:   client,
 		nodeName: nodeName,
-		lvmc:     lvmc,
+		lsmc:     lvmc,
 	}
 }
 
@@ -131,7 +131,7 @@ func (r *LogicalVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *LogicalVolumeReconciler) removeLVIfExists(ctx context.Context, log logr.Logger, lv *topolsv1.LogicalVolume) error {
 	// Finalizer's process ( RemoveLV then removeString ) is not atomic,
 	// so checking existence of LV to ensure its idempotence
-	volumes, err := r.lvmc.GetLVList(lv.Spec.DeviceClass)
+	volumes, err := r.lsmc.GetLVList(lv.Spec.DeviceClass)
 	if err != nil {
 		log.Error(err, "failed to list LV")
 		return err
@@ -141,7 +141,7 @@ func (r *LogicalVolumeReconciler) removeLVIfExists(ctx context.Context, log logr
 		if v.Name != string(lv.UID) {
 			continue
 		}
-		err := r.lvmc.RemoveLV(string(lv.UID), lv.Spec.DeviceClass)
+		err := r.lsmc.RemoveLV(string(lv.UID), lv.Spec.DeviceClass)
 		if err != nil {
 			log.Error(err, "failed to remove LV", "name", lv.Name, "uid", lv.UID)
 			return err
@@ -154,7 +154,7 @@ func (r *LogicalVolumeReconciler) removeLVIfExists(ctx context.Context, log logr
 }
 
 func (r *LogicalVolumeReconciler) volumeExists(ctx context.Context, log logr.Logger, lv *topolsv1.LogicalVolume) (bool, error) {
-	volumes, err := r.lvmc.GetLVList(lv.Spec.DeviceClass)
+	volumes, err := r.lsmc.GetLVList(lv.Spec.DeviceClass)
 	if err != nil {
 		log.Error(err, "failed to get list of LV")
 		return false, err
@@ -211,7 +211,7 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 			sourceVolID := sourcelv.Status.VolumeID
 
 			// Create a snapshot lv
-			volume, err = r.lvmc.CreateLVSnapshot(string(lv.UID), lv.Spec.DeviceClass, sourceVolID, uint64(reqBytes), lv.Spec.AccessType)
+			volume, err = r.lsmc.CreateLVSnapshot(string(lv.UID), lv.Spec.DeviceClass, sourceVolID, uint64(reqBytes), lv.Spec.AccessType)
 			if err != nil {
 				code, message := extractFromError(err)
 				log.Error(err, message)
@@ -221,7 +221,7 @@ func (r *LogicalVolumeReconciler) createLV(ctx context.Context, log logr.Logger,
 			}
 		} else {
 			// Create a regular lv
-			volume, err = r.lvmc.CreateLV(string(lv.UID), lv.Spec.DeviceClass, uint64(reqBytes))
+			volume, err = r.lsmc.CreateLV(string(lv.UID), lv.Spec.DeviceClass, lv.Spec.NoCow, uint64(reqBytes))
 			if err != nil {
 				code, message := extractFromError(err)
 				log.Error(err, message)
@@ -272,7 +272,7 @@ func (r *LogicalVolumeReconciler) expandLV(ctx context.Context, log logr.Logger,
 	reqBytes := lv.Spec.Size.Value()
 
 	err := func() error {
-		err := r.lvmc.ResizeLV(string(lv.UID), lv.Spec.DeviceClass, uint64(reqBytes))
+		err := r.lsmc.ResizeLV(string(lv.UID), lv.Spec.DeviceClass, uint64(reqBytes))
 		if err != nil {
 			code, message := extractFromError(err)
 			log.Error(err, message)

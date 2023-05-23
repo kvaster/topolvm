@@ -2,10 +2,10 @@ package client
 
 import (
 	"fmt"
+	"github.com/kvaster/topols"
 	topolsv1 "github.com/kvaster/topols/api/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/topolvm/topolvm"
 	"google.golang.org/grpc/codes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -50,7 +50,7 @@ var _ = Describe("client", func() {
 					Expect(checklv.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 					Expect(checklv.Spec.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 					Expect(checklv.Spec.NodeName).Should(Equal(fmt.Sprintf("node-%d", i)))
-					Expect(checklv.Spec.DeviceClass).Should(Equal(topolvm.DefaultDeviceClassName))
+					Expect(checklv.Spec.DeviceClass).Should(Equal(topols.DefaultDeviceClassName))
 					Expect(checklv.Spec.Size.Value()).Should(Equal(resource.NewQuantity(1<<30, resource.BinarySI).Value()))
 					Expect(checklv.Spec.Source).Should(Equal(fmt.Sprintf("source-%d", i)))
 					Expect(checklv.Spec.AccessType).Should(Equal("rw"))
@@ -82,7 +82,7 @@ var _ = Describe("client", func() {
 						Expect(lv.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 						Expect(lv.Spec.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 						Expect(lv.Spec.NodeName).Should(Equal(fmt.Sprintf("node-%d", i)))
-						Expect(lv.Spec.DeviceClass).Should(Equal(topolvm.DefaultDeviceClassName))
+						Expect(lv.Spec.DeviceClass).Should(Equal(topols.DefaultDeviceClassName))
 						Expect(lv.Spec.Size.Value()).Should(Equal(resource.NewQuantity(1<<30, resource.BinarySI).Value()))
 						Expect(lv.Spec.Source).Should(Equal(fmt.Sprintf("source-%d", i)))
 						Expect(lv.Spec.AccessType).Should(Equal("rw"))
@@ -115,7 +115,7 @@ var _ = Describe("client", func() {
 						g.Expect(checklv.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 						g.Expect(checklv.Spec.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 						g.Expect(checklv.Spec.NodeName).Should(Equal(fmt.Sprintf("node-%d", i)))
-						g.Expect(checklv.Spec.DeviceClass).Should(Equal(topolvm.DefaultDeviceClassName))
+						g.Expect(checklv.Spec.DeviceClass).Should(Equal(topols.DefaultDeviceClassName))
 						g.Expect(checklv.Spec.Size.Value()).Should(Equal(resource.NewQuantity(1<<30, resource.BinarySI).Value()))
 						g.Expect(checklv.Spec.Source).Should(Equal(fmt.Sprintf("source-%d", i)))
 						g.Expect(checklv.Spec.AccessType).Should(Equal("rw"))
@@ -149,7 +149,7 @@ var _ = Describe("client", func() {
 							g.Expect(lv.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 							g.Expect(lv.Spec.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 							g.Expect(lv.Spec.NodeName).Should(Equal(fmt.Sprintf("node-%d", i)))
-							g.Expect(lv.Spec.DeviceClass).Should(Equal(topolvm.DefaultDeviceClassName))
+							g.Expect(lv.Spec.DeviceClass).Should(Equal(topols.DefaultDeviceClassName))
 							g.Expect(lv.Spec.Size.Value()).Should(Equal(resource.NewQuantity(1<<30, resource.BinarySI).Value()))
 							g.Expect(lv.Spec.Source).Should(Equal(fmt.Sprintf("source-%d", i)))
 							g.Expect(lv.Spec.AccessType).Should(Equal("rw"))
@@ -176,7 +176,7 @@ var _ = Describe("client", func() {
 					Expect(checklv.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 					Expect(checklv.Spec.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 					Expect(checklv.Spec.NodeName).Should(Equal(fmt.Sprintf("node-%d", i)))
-					Expect(checklv.Spec.DeviceClass).Should(Equal(topolvm.DefaultDeviceClassName))
+					Expect(checklv.Spec.DeviceClass).Should(Equal(topols.DefaultDeviceClassName))
 					Expect(checklv.Spec.Size.Value()).Should(Equal(resource.NewQuantity(1<<30, resource.BinarySI).Value()))
 					Expect(checklv.Spec.Source).Should(Equal(fmt.Sprintf("source-%d", i)))
 					Expect(checklv.Spec.AccessType).Should(Equal("rw"))
@@ -222,7 +222,7 @@ var _ = Describe("client", func() {
 					Expect(checklv.Annotations).Should(Equal(ann))
 					Expect(checklv.Spec.Name).Should(Equal(fmt.Sprintf("updated-current-%d", i)))
 					Expect(checklv.Spec.NodeName).Should(Equal(fmt.Sprintf("updated-node-%d", i)))
-					Expect(checklv.Spec.DeviceClass).Should(Equal(topolvm.DefaultDeviceClassName))
+					Expect(checklv.Spec.DeviceClass).Should(Equal(topols.DefaultDeviceClassName))
 					Expect(checklv.Spec.Size.Value()).Should(Equal(resource.NewQuantity(1<<30, resource.BinarySI).Value()))
 					Expect(checklv.Spec.Source).Should(Equal(fmt.Sprintf("source-%d", i)))
 					Expect(checklv.Spec.AccessType).Should(Equal("rw"))
@@ -252,7 +252,7 @@ var _ = Describe("client", func() {
 					Expect(checklv.Annotations).Should(Equal(ann))
 					Expect(checklv.Spec.Name).Should(Equal(fmt.Sprintf("updated-current-%d", i)))
 					Expect(checklv.Spec.NodeName).Should(Equal(fmt.Sprintf("updated-node-%d", i)))
-					Expect(checklv.Spec.DeviceClass).Should(Equal(topolvm.DefaultDeviceClassName))
+					Expect(checklv.Spec.DeviceClass).Should(Equal(topols.DefaultDeviceClassName))
 					Expect(checklv.Spec.Size.Value()).Should(Equal(resource.NewQuantity(1<<30, resource.BinarySI).Value()))
 					Expect(checklv.Spec.Source).Should(Equal(fmt.Sprintf("source-%d", i)))
 					Expect(checklv.Spec.AccessType).Should(Equal("rw"))
@@ -331,7 +331,7 @@ var _ = Describe("client", func() {
 						Expect(checklv.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 						Expect(checklv.Spec.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 						Expect(checklv.Spec.NodeName).Should(Equal(fmt.Sprintf("node-%d", i)))
-						Expect(checklv.Spec.DeviceClass).Should(Equal(topolvm.DefaultDeviceClassName))
+						Expect(checklv.Spec.DeviceClass).Should(Equal(topols.DefaultDeviceClassName))
 						Expect(checklv.Spec.Size.Value()).Should(Equal(resource.NewQuantity(1<<30, resource.BinarySI).Value()))
 						Expect(checklv.Spec.Source).Should(Equal(fmt.Sprintf("source-%d", i)))
 						Expect(checklv.Spec.AccessType).Should(Equal("rw"))
@@ -362,7 +362,7 @@ var _ = Describe("client", func() {
 						Expect(checklv.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 						Expect(checklv.Spec.Name).Should(Equal(fmt.Sprintf("current-%d", i)))
 						Expect(checklv.Spec.NodeName).Should(Equal(fmt.Sprintf("node-%d", i)))
-						Expect(checklv.Spec.DeviceClass).Should(Equal(topolvm.DefaultDeviceClassName))
+						Expect(checklv.Spec.DeviceClass).Should(Equal(topols.DefaultDeviceClassName))
 						Expect(checklv.Spec.Size.Value()).Should(Equal(resource.NewQuantity(1<<30, resource.BinarySI).Value()))
 						Expect(checklv.Spec.Source).Should(Equal(fmt.Sprintf("source-%d", i)))
 						Expect(checklv.Spec.AccessType).Should(Equal("rw"))
