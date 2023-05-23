@@ -138,7 +138,7 @@ func (m *podMutator) volumesCapacity(ctx context.Context, pod *corev1.Pod) (map[
 				return nil, err
 			}
 			if isAlreadyBound {
-				// If there is a TopoLVM volume that has been bound, scheduling will not be performed because the node to be scheduled is already fixed.
+				// If there is a TopoLS volume that has been bound, scheduling will not be performed because the node to be scheduled is already fixed.
 				return nil, nil
 			}
 			if len(dc) == 0 {
@@ -202,7 +202,7 @@ func (m *podMutator) pvcCapacity(
 		return "", 0, false, nil
 	}
 
-	// If the Pod has a bound PVC of TopoLVM, the pod will be scheduled
+	// If the Pod has a bound PVC of TopoLS, the pod will be scheduled
 	// to the node of the existing PV.
 	if pvc.Status.Phase != corev1.ClaimPending {
 		return "", 0, true, nil
