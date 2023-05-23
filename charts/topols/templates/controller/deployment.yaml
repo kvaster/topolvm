@@ -171,7 +171,7 @@ spec:
           - --csi-address=/run/topols/csi-topols.sock
           - --leader-election
           - --leader-election-namespace={{ .Release.Namespace }}
-            - --http-endpoint=:9811
+          - --http-endpoint=:9811
           ports:
             - containerPort: 9811
               name: csi-snapshotter

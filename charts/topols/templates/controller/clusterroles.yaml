@@ -24,7 +24,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: {{ template "topols.clusterRolePrefix" }}-external-provisioner-runner
+  name: {{ include "topols.clusterRolePrefix" . }}-external-provisioner-runner
   labels:
     {{- include "topols.labels" . | nindent 4 }}
 rules:
@@ -75,7 +75,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: {{ template "topols.clusterRolePrefix" }}-external-resizer-runner
+  name: {{ include "topols.clusterRolePrefix" . }}-external-resizer-runner
   labels:
     {{- include "topols.labels" . | nindent 4 }}
 rules:
@@ -103,7 +103,7 @@ rules:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: {{ template "topols.clusterRolePrefix" }}-external-snapshotter-runner
+  name: {{ include "topols.clusterRolePrefix" . }}-external-snapshotter-runner
   labels:
     {{- include "topols.labels" . | nindent 4 }}
 rules:

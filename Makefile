@@ -29,6 +29,7 @@ export GOFLAGS
 BUILD_TARGET=hypertopols
 TOPOLS_VERSION ?= devel
 IMAGE_TAG ?= latest
+ORIGINAL_IMAGE_TAG ?=
 STRUCTURE_TEST_TARGET ?= normal
 
 ENVTEST_KUBERNETES_VERSION=1.26
@@ -42,6 +43,8 @@ BUILDX_PUSH_OPTIONS := "-o type=tar,dest=build/topols.tar"
 ifeq ($(PUSH),true)
 BUILDX_PUSH_OPTIONS := --push
 endif
+
+PLATFORMS ?= linux/amd64,linux/arm64/v8,linux/ppc64le
 
 # Set the shell used to bash for better error handling.
 SHELL = /bin/bash
@@ -168,13 +171,6 @@ endif
 create-docker-container: ## Create docker-container.
 	docker buildx create --use
 
-BUILD_TAGS := -t $(IMAGE_PREFIX)topols:$(IMAGE_TAG)
-BUILD_TAGS_SIDECAR := -t $(IMAGE_PREFIX)topols-with-sidecar:$(IMAGE_TAG)
-ifeq ($(PUSH_LATEST),true)
-BUILD_TAGS := $(BUILD_TAGS) -t $(IMAGE_PREFIX)topols:latest
-BUILD_TAGS_SIDECAR := $(BUILD_TAGS_SIDECAR) -t $(IMAGE_PREFIX)topols-with-sidecar:latest
-endif
-
 .PHONY: multi-platform-images
 multi-platform-images: multi-platform-image-normal multi-platform-image-with-sidecar ## Build or push multi-platform topols images.
 
@@ -182,8 +178,8 @@ multi-platform-images: multi-platform-image-normal multi-platform-image-with-sid
 multi-platform-image-normal:
 	mkdir -p build
 	docker buildx build --no-cache $(BUILDX_PUSH_OPTIONS) \
-		--platform linux/amd64,linux/arm64/v8,linux/ppc64le \
-		$(BUILD_TAGS) \
+		--platform $(PLATFORMS) \
+		-t $(IMAGE_PREFIX)topols:$(IMAGE_TAG) \
 		--build-arg TOPOLS_VERSION=$(TOPOLS_VERSION) \
 		--target topols \
 		.
@@ -192,26 +188,20 @@ multi-platform-image-normal:
 multi-platform-image-with-sidecar:
 	mkdir -p build
 	docker buildx build --no-cache $(BUILDX_PUSH_OPTIONS) \
-		--platform linux/amd64,linux/arm64/v8,linux/ppc64le \
-		$(BUILD_TAGS_SIDECAR) \
+		--platform $(PLATFORMS) \
+		-t $(IMAGE_PREFIX)topols-with-sidecar:$(IMAGE_TAG) \
 		--build-arg TOPOLS_VERSION=$(TOPOLS_VERSION) \
-		--build-arg IMAGE_PREFIX=$(IMAGE_PREFIX) \
 		--target topols-with-sidecar \
 		.
 
 .PHONY: tag
 tag: ## Tag topols images.
 	docker buildx imagetools create \
-		--tag $(IMAGE_PREFIX)topols:devel \
-		$(IMAGE_PREFIX)topols:$(IMAGE_TAG)
+		--tag $(IMAGE_PREFIX)topols:$(IMAGE_TAG) \
+		$(IMAGE_PREFIX)topols:$(ORIGINAL_IMAGE_TAG)
 	docker buildx imagetools create \
-		--tag $(IMAGE_PREFIX)topols-with-sidecar:devel \
-		$(IMAGE_PREFIX)topols-with-sidecar:$(IMAGE_TAG)
-
-.PHONY: push
-push: ## Push topols images.
-	docker push $(IMAGE_PREFIX)topols:$(IMAGE_TAG)
-	docker push $(IMAGE_PREFIX)topols-with-sidecar:$(IMAGE_TAG)
+		--tag $(IMAGE_PREFIX)topols-with-sidecar:$(IMAGE_TAG) \
+		$(IMAGE_PREFIX)topols-with-sidecar:$(ORIGINAL_IMAGE_TAG)
 
 ##@ Chart Testing
 
