@@ -39,4 +39,5 @@ jobs:
             go-
       - name: Build and push
         run: make multi-platform-images PUSH=true TOPOLS_VERSION=${{ steps.check_version.outputs.version }} IMAGE_TAG=${{ steps.check_version.outputs.version }} IMAGE_PREFIX=ghcr.io/kvaster/
-        run: mame tag IMAGE_TAG=latest ORIGINAL_IMAGE_TAG=${{ steps.check_version.outputs.version }}
+      - name: Tag latest
+        run: make tag IMAGE_TAG=latest ORIGINAL_IMAGE_TAG=${{ steps.check_version.outputs.version }} IMAGE_PREFIX=ghcr.io/kvaster/
