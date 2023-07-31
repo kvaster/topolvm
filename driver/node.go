@@ -177,24 +177,45 @@ func (s *nodeServerNoLocked) nodePublishFilesystemVolume(req *csi.NodePublishVol
 		return err
 	}
 
+	volumeId := req.GetVolumeId()
 	sourcePath := s.client.GetPath(lv)
+	targetPath := req.GetTargetPath()
 
-	err = os.MkdirAll(req.GetTargetPath(), 0755)
-	if err != nil {
-		return status.Errorf(codes.Internal, "mkdir failed: target=%s, error=%v", req.GetTargetPath(), err)
+	if isMnt, err := s.mounter.IsMountPoint(targetPath); err != nil {
+		if os.IsNotExist(err) {
+			if err = os.MkdirAll(targetPath, 0755); err != nil {
+				return status.Errorf(codes.Internal, "target path create failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
+			}
+
+			nodeLogger.Info("NodePublishVolume(fs) target path created",
+				"volume_id", volumeId,
+				"target_path", targetPath,
+			)
+		} else {
+			return status.Errorf(codes.Internal, "target path check failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
+		}
+	} else if isMnt {
+		if err := s.mounter.Unmount(targetPath); err != nil {
+			return status.Errorf(codes.Internal, "mounted target path unmount failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
+		}
+
+		nodeLogger.Info("NodePublishVolume(fs) mounted target path unmounted",
+			"volume_id", volumeId,
+			"target_path", targetPath,
+		)
 	}
 
-	if err := s.mounter.Mount(sourcePath, req.GetTargetPath(), "", mountOptions); err != nil {
-		return status.Errorf(codes.Internal, "mount failed: volume=%s, error=%v", req.GetVolumeId(), err)
+	if err := s.mounter.Mount(sourcePath, targetPath, "", mountOptions); err != nil {
+		return status.Errorf(codes.Internal, "mount failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
 	}
 
-	if err := os.Chmod(req.GetTargetPath(), 0777|os.ModeSetgid); err != nil {
-		return status.Errorf(codes.Internal, "chmod 2777 failed: target=%s, error=%v", req.GetTargetPath(), err)
+	if err := os.Chmod(targetPath, 0777|os.ModeSetgid); err != nil {
+		return status.Errorf(codes.Internal, "chmod 2777 failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
 	}
 
 	nodeLogger.Info("NodePublishVolume(fs) succeeded",
-		"volume_id", req.GetVolumeId(),
-		"target_path", req.GetTargetPath(),
+		"volume_id", volumeId,
+		"target_path", targetPath,
 		"fstype", mountOption.FsType)
 
 	return nil
@@ -242,30 +263,46 @@ func (s *nodeServerNoLocked) NodeUnpublishVolume(ctx context.Context, req *csi.N
 		return nil, status.Errorf(codes.Internal, "target_path is not directory: %s", targetPath)
 	}
 
-	unpublishResp, err := s.nodeUnpublishFilesystemVolume(req)
+	err = s.nodeUnpublishFilesystemVolume(req)
 	if err != nil {
-		return unpublishResp, err
+		return nil, err
 	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil
 }
 
-func (s *nodeServerNoLocked) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolumeRequest) (*csi.NodeUnpublishVolumeResponse, error) {
+func (s *nodeServerNoLocked) nodeUnpublishFilesystemVolume(req *csi.NodeUnpublishVolumeRequest) error {
 	targetPath := req.GetTargetPath()
+	volumeId := req.GetVolumeId()
 
-	if ok, err := s.mounter.IsLikelyNotMountPoint(targetPath); !ok || mountutil.IsCorruptedMnt(err) {
+	if isMnt, err := s.mounter.IsMountPoint(targetPath); err != nil {
+		if os.IsNotExist(err) {
+			nodeLogger.Info("NodeUnpublishVolume(fs) target path does not exists",
+				"volume_id", volumeId,
+				"target_path", targetPath,
+			)
+		} else {
+			return status.Errorf(codes.Internal, "target path check failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
+		}
+	} else if isMnt {
 		if err := s.mounter.Unmount(targetPath); err != nil {
-			return nil, status.Errorf(codes.Internal, "unmount failed for %s: error=%v", targetPath, err)
+			return status.Errorf(codes.Internal, "target path unmount failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
+		}
+
+		nodeLogger.Info("NodeUnpublishVolume(fs) target path unmounted",
+			"volume_id", volumeId,
+			"target_path", targetPath,
+		)
+
+		if err := os.Remove(targetPath); err != nil {
+			return status.Errorf(codes.Internal, "error removing target path: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
 		}
 	}
 
-	if err := os.RemoveAll(targetPath); err != nil {
-		return nil, status.Errorf(codes.Internal, "remove dir failed for %s: error=%v", targetPath, err)
-	}
-
 	nodeLogger.Info("NodeUnpublishVolume(fs) is succeeded",
-		"volume_id", req.GetVolumeId(),
+		"volume_id", volumeId,
 		"target_path", targetPath)
-	return &csi.NodeUnpublishVolumeResponse{}, nil
+
+	return nil
 }
 
 func (s *nodeServerNoLocked) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
