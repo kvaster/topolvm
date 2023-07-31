@@ -3,12 +3,12 @@ package client
 import (
 	"context"
 	"fmt"
-
 	topolsv1 "github.com/kvaster/topols/api/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -148,6 +148,14 @@ func (c *wrappedClient) Scheme() *runtime.Scheme {
 
 func (c *wrappedClient) RESTMapper() meta.RESTMapper {
 	return c.client.RESTMapper()
+}
+
+func (c *wrappedClient) GroupVersionKindFor(obj runtime.Object) (schema.GroupVersionKind, error) {
+	return c.client.GroupVersionKindFor(obj)
+}
+
+func (c *wrappedClient) IsObjectNamespaced(obj runtime.Object) (bool, error) {
+	return c.client.IsObjectNamespaced(obj)
 }
 
 type wrappedSubResourceClient struct {

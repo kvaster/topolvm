@@ -1,6 +1,8 @@
 package topols
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	corev1 "k8s.io/api/core/v1"
+)
 
 // CapacityKeyPrefix is the key prefix of Node annotation that represents VG free space.
 const CapacityKeyPrefix = "capacity.topols.kvaster.com/"
@@ -22,6 +24,9 @@ const NoCowKey = "topols.kvaster.com/no-cow"
 
 // ResizeRequestedAtKey is the key of LogicalVolume that represents the timestamp of the resize request.
 const ResizeRequestedAtKey = "topols.kvaster.com/resize-requested-at"
+
+// GetPendingDeletionKey returns the name of the pending-deletion annotation
+const LVPendingDeletionKey = "topols.kvaster.com/pendingdeletion"
 
 // LogicalVolumeFinalizer is the name of LogicalVolume finalizer
 const LogicalVolumeFinalizer = "topols.kvaster.com/logicalvolume"

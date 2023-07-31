@@ -1,7 +1,7 @@
 package hook
 
 import (
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	"strconv"
 
 	"github.com/kvaster/topols"
@@ -255,7 +255,7 @@ var _ = Describe("pod mutation webhook", func() {
 						VolumeClaimTemplate: &corev1.PersistentVolumeClaimTemplate{
 							Spec: corev1.PersistentVolumeClaimSpec{
 								AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
-								StorageClassName: pointer.String(topolsProvisionerStorageClassName),
+								StorageClassName: ptr.To(topolsProvisionerStorageClassName),
 								Resources: corev1.ResourceRequirements{
 									Requests: corev1.ResourceList{
 										"storage": *resource.NewQuantity(100<<30, resource.DecimalSI),
