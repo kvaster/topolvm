@@ -4,8 +4,8 @@ type: application
 home: https://github.com/kvaster/topols
 name: topols
 description: Topols
-version: 11.3.0
-appVersion: 0.19.1
+version: 11.3.1
+appVersion: 0.19.2
 sources:
   - https://github.com/kvaster/topols
 

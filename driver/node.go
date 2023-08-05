@@ -181,7 +181,9 @@ func (s *nodeServerNoLocked) nodePublishFilesystemVolume(req *csi.NodePublishVol
 	sourcePath := s.client.GetPath(lv)
 	targetPath := req.GetTargetPath()
 
-	if isMnt, err := s.mounter.IsMountPoint(targetPath); err != nil {
+	isMnt, err := s.mounter.IsMountPoint(targetPath)
+
+	if err != nil {
 		if os.IsNotExist(err) {
 			if err = os.MkdirAll(targetPath, 0755); err != nil {
 				return status.Errorf(codes.Internal, "target path create failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
@@ -191,26 +193,26 @@ func (s *nodeServerNoLocked) nodePublishFilesystemVolume(req *csi.NodePublishVol
 				"volume_id", volumeId,
 				"target_path", targetPath,
 			)
+
+			isMnt = false
 		} else {
 			return status.Errorf(codes.Internal, "target path check failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
 		}
-	} else if isMnt {
-		if err := s.mounter.Unmount(targetPath); err != nil {
-			return status.Errorf(codes.Internal, "mounted target path unmount failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
-		}
+	}
 
-		nodeLogger.Info("NodePublishVolume(fs) mounted target path unmounted",
+	if isMnt {
+		nodeLogger.Info("NodePublishVolume(fs) target path is already mounted",
 			"volume_id", volumeId,
 			"target_path", targetPath,
 		)
-	}
+	} else {
+		if err := s.mounter.Mount(sourcePath, targetPath, "", mountOptions); err != nil {
+			return status.Errorf(codes.Internal, "mount failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
+		}
 
-	if err := s.mounter.Mount(sourcePath, targetPath, "", mountOptions); err != nil {
-		return status.Errorf(codes.Internal, "mount failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
-	}
-
-	if err := os.Chmod(targetPath, 0777|os.ModeSetgid); err != nil {
-		return status.Errorf(codes.Internal, "chmod 2777 failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
+		if err := os.Chmod(targetPath, 0777|os.ModeSetgid); err != nil {
+			return status.Errorf(codes.Internal, "chmod 2777 failed: volume=%s, target=%s, error=%v", volumeId, targetPath, err)
+		}
 	}
 
 	nodeLogger.Info("NodePublishVolume(fs) succeeded",
