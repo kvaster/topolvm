@@ -126,13 +126,6 @@ spec:
             {{- with .Values.livenessProbe.csi_registrar.periodSeconds }}
             periodSeconds: {{ . }}
             {{- end }}
-          lifecycle:
-            preStop:
-              exec:
-                command:
-                - /bin/sh
-                - -c
-                - rm -rf /registration/topols.kvaster.com /registration/topols.kvaster.com-reg.sock
           {{- with .Values.resources.csi_registrar }}
           resources: {{ toYaml . | nindent 12 }}
           {{- end }}
