@@ -72,7 +72,11 @@ func (c *btrfs) Watch() chan struct{} {
 
 func (c *btrfs) notify() {
 	for _, w := range c.watches {
-		w <- struct{}{}
+		var _w = w
+		// use separate goroutine to avoid deadlock
+		go func() {
+			_w <- struct{}{}
+		}()
 	}
 }
 
