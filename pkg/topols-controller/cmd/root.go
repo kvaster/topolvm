@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/kvaster/topols"
 	"github.com/spf13/cobra"
@@ -12,14 +13,20 @@ import (
 )
 
 var config struct {
-	csiSocket        string
-	metricsAddr      string
-	healthAddr       string
-	webhookAddr      string
-	certDir          string
-	leaderElectionID string
-	skipNodeFinalize bool
-	zapOpts          zap.Options
+	csiSocket                   string
+	metricsAddr                 string
+	healthAddr                  string
+	enableWebhooks              bool
+	webhookAddr                 string
+	certDir                     string
+	leaderElection              bool
+	leaderElectionID            string
+	leaderElectionNamespace     string
+	leaderElectionLeaseDuration time.Duration
+	leaderElectionRenewDeadline time.Duration
+	leaderElectionRetryPeriod   time.Duration
+	skipNodeFinalize            bool
+	zapOpts                     zap.Options
 }
 
 var rootCmd = &cobra.Command{
@@ -50,8 +57,14 @@ func init() {
 	fs.StringVar(&config.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
 	fs.StringVar(&config.healthAddr, "health-probe-bind-address", ":8081", "The TCP address that the controller should bind to for serving health probes.")
 	fs.StringVar(&config.webhookAddr, "webhook-addr", ":9443", "Listen address for the webhook endpoint")
+	fs.BoolVar(&config.enableWebhooks, "enable-webhooks", true, "Enable webhooks")
 	fs.StringVar(&config.certDir, "cert-dir", "", "certificate directory")
+	fs.BoolVar(&config.leaderElection, "leader-election", true, "Enables leader election. This field is required to be set to true if concurrency is greater than 1 at any given point in time during rollouts.")
 	fs.StringVar(&config.leaderElectionID, "leader-election-id", "topols", "ID for leader election by controller-runtime")
+	fs.StringVar(&config.leaderElectionNamespace, "leader-election-namespace", "", "Namespace where the leader election resource lives. Defaults to the pod namespace if not set.")
+	fs.DurationVar(&config.leaderElectionLeaseDuration, "leader-election-lease-duration", 15*time.Second, "Duration that non-leader candidates will wait to force acquire leadership. This is measured against time of last observed ack.")
+	fs.DurationVar(&config.leaderElectionRenewDeadline, "leader-election-renew-deadline", 10*time.Second, "Duration that the acting controlplane will retry refreshing leadership before giving up. This is measured against time of last observed ack.")
+	fs.DurationVar(&config.leaderElectionRetryPeriod, "leader-election-retry-period", 2*time.Second, "Duration the LeaderElector clients should wait between tries of actions.")
 	fs.BoolVar(&config.skipNodeFinalize, "skip-node-finalize", false, "skips automatic cleanup of PhysicalVolumeClaims when a Node is deleted")
 
 	goflags := flag.NewFlagSet("klog", flag.ExitOnError)

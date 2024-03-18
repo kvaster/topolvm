@@ -1,21 +1,23 @@
 package hook
 
 import (
-	"k8s.io/utils/ptr"
 	"strconv"
 
 	"github.com/kvaster/topols"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (
 	mutatePodNamespace = "test-mutate-pod"
 	defaultPodName     = "test-pod"
+	mebibyte           = 1048576
 )
 
 func pvcSource(name string) *corev1.PersistentVolumeClaimVolumeSource {
@@ -37,7 +39,7 @@ func setupMutatePodResources() {
 	localPVC.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	localPVC.Spec.StorageClassName = strPtr(hostLocalStorageClassName)
 	localPVC.Spec.Resources.Requests = corev1.ResourceList{
-		"storage": *resource.NewQuantity(10<<30, resource.DecimalSI),
+		"storage": *resource.NewQuantity(10<<30, resource.BinarySI),
 	}
 	err = k8sClient.Create(testCtx, localPVC)
 	Expect(err).ShouldNot(HaveOccurred())
@@ -48,7 +50,7 @@ func setupMutatePodResources() {
 	boundPVC.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	boundPVC.Spec.StorageClassName = strPtr(topolsProvisionerStorageClassName)
 	boundPVC.Spec.Resources.Requests = corev1.ResourceList{
-		"storage": *resource.NewQuantity(100<<30, resource.DecimalSI),
+		"storage": *resource.NewQuantity(100<<30, resource.BinarySI),
 	}
 	err = k8sClient.Create(testCtx, boundPVC)
 	Expect(err).ShouldNot(HaveOccurred())
@@ -64,7 +66,7 @@ func setupMutatePodResources() {
 	pvc1.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	pvc1.Spec.StorageClassName = strPtr(topolsProvisionerStorageClassName)
 	pvc1.Spec.Resources.Requests = corev1.ResourceList{
-		"storage": *resource.NewQuantity(100<<20, resource.DecimalSI),
+		"storage": *resource.NewQuantity(100<<30, resource.BinarySI),
 	}
 	err = k8sClient.Create(testCtx, pvc1)
 	Expect(err).ShouldNot(HaveOccurred())
@@ -75,7 +77,7 @@ func setupMutatePodResources() {
 	pvc2.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	pvc2.Spec.StorageClassName = strPtr(topolsProvisionerStorageClassName)
 	pvc2.Spec.Resources.Requests = corev1.ResourceList{
-		"storage": *resource.NewQuantity(2<<30-1, resource.DecimalSI),
+		"storage": *resource.NewQuantity(2<<30-1, resource.BinarySI),
 	}
 	err = k8sClient.Create(testCtx, pvc2)
 	Expect(err).ShouldNot(HaveOccurred())
@@ -86,7 +88,7 @@ func setupMutatePodResources() {
 	pvc3.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	pvc3.Spec.StorageClassName = strPtr(topolsProvisioner2StorageClassName)
 	pvc3.Spec.Resources.Requests = corev1.ResourceList{
-		"storage": *resource.NewQuantity(3<<30, resource.DecimalSI),
+		"storage": *resource.NewQuantity(3<<30, resource.BinarySI),
 	}
 	err = k8sClient.Create(testCtx, pvc3)
 	Expect(err).ShouldNot(HaveOccurred())
@@ -97,9 +99,20 @@ func setupMutatePodResources() {
 	pvc4.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	pvc4.Spec.StorageClassName = strPtr(topolsProvisioner3StorageClassName)
 	pvc4.Spec.Resources.Requests = corev1.ResourceList{
-		"storage": *resource.NewQuantity(4<<30, resource.DecimalSI),
+		"storage": *resource.NewQuantity(4<<30, resource.BinarySI),
 	}
 	err = k8sClient.Create(testCtx, pvc4)
+	Expect(err).ShouldNot(HaveOccurred())
+
+	pvc5 := &corev1.PersistentVolumeClaim{}
+	pvc5.Namespace = mutatePodNamespace
+	pvc5.Name = "pvc5"
+	pvc5.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
+	pvc5.Spec.StorageClassName = strPtr(topolsProvisionerStorageClassName)
+	pvc5.Spec.Resources.Requests = corev1.ResourceList{
+		"storage": *resource.NewQuantity(500*mebibyte, resource.BinarySI),
+	}
+	err = k8sClient.Create(testCtx, pvc5)
 	Expect(err).ShouldNot(HaveOccurred())
 
 	defaultPVC := &corev1.PersistentVolumeClaim{}
@@ -107,7 +120,7 @@ func setupMutatePodResources() {
 	defaultPVC.Name = "default-pvc"
 	defaultPVC.Spec.AccessModes = []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce}
 	defaultPVC.Spec.Resources.Requests = corev1.ResourceList{
-		"storage": *resource.NewQuantity(3<<30, resource.DecimalSI),
+		"storage": *resource.NewQuantity(3<<30, resource.BinarySI),
 	}
 	err = k8sClient.Create(testCtx, defaultPVC)
 	Expect(err).ShouldNot(HaveOccurred())
@@ -191,10 +204,10 @@ var _ = Describe("pod mutation webhook", func() {
 		pod = getPod()
 		request := pod.Spec.Containers[0].Resources.Requests[topols.CapacityResource]
 		limit := pod.Spec.Containers[0].Resources.Limits[topols.CapacityResource]
-		capacity := pod.Annotations[topols.CapacityKeyPrefix+"ssd"]
-		Expect(request.Value()).Should(BeNumerically("==", 1))
-		Expect(limit.Value()).Should(BeNumerically("==", 1))
-		Expect(capacity).Should(Equal(strconv.Itoa(100 << 20)))
+		capacity := pod.Annotations[topols.CapacityKeyPrefix+"dc1"]
+		Expect(request.Value()).Should(Equal(int64(1)))
+		Expect(limit.Value()).Should(Equal(int64(1)))
+		Expect(capacity).Should(Equal(strconv.Itoa(100 << 30)))
 	})
 
 	It("should mutate pod w/ TopoLS PVC on multiple volume groups", func() {
@@ -225,23 +238,23 @@ var _ = Describe("pod mutation webhook", func() {
 		pod = getPod()
 		request := pod.Spec.Containers[0].Resources.Requests[topols.CapacityResource]
 		limit := pod.Spec.Containers[0].Resources.Limits[topols.CapacityResource]
-		capacity := pod.Annotations[topols.CapacityKeyPrefix+"ssd"]
-		Expect(request.Value()).Should(BeNumerically("==", 1))
-		Expect(limit.Value()).Should(BeNumerically("==", 1))
-		Expect(capacity).Should(Equal(strconv.Itoa(100 << 20)))
+		capacity := pod.Annotations[topols.CapacityKeyPrefix+"dc1"]
+		Expect(request.Value()).Should(Equal(int64(1)))
+		Expect(limit.Value()).Should(Equal(int64(1)))
+		Expect(capacity).Should(Equal(strconv.Itoa(100 << 30)))
 
 		request = pod.Spec.Containers[0].Resources.Requests[topols.CapacityResource]
 		limit = pod.Spec.Containers[0].Resources.Limits[topols.CapacityResource]
-		capacity = pod.Annotations[topols.CapacityKeyPrefix+"hdd1"]
-		Expect(request.Value()).Should(BeNumerically("==", 1))
-		Expect(limit.Value()).Should(BeNumerically("==", 1))
+		capacity = pod.Annotations[topols.CapacityKeyPrefix+"dc2"]
+		Expect(request.Value()).Should(Equal(int64(1)))
+		Expect(limit.Value()).Should(Equal(int64(1)))
 		Expect(capacity).Should(Equal(strconv.Itoa(3 << 30)))
 
 		request = pod.Spec.Containers[0].Resources.Requests[topols.CapacityResource]
-		capacity = pod.Annotations[topols.CapacityKeyPrefix+"hdd2"]
+		capacity = pod.Annotations[topols.CapacityKeyPrefix+"dc3"]
 		limit = pod.Spec.Containers[0].Resources.Limits[topols.CapacityResource]
-		Expect(request.Value()).Should(BeNumerically("==", 1))
-		Expect(limit.Value()).Should(BeNumerically("==", 1))
+		Expect(request.Value()).Should(Equal(int64(1)))
+		Expect(limit.Value()).Should(Equal(int64(1)))
 		Expect(capacity).Should(Equal(strconv.Itoa(4 << 30)))
 	})
 
@@ -256,9 +269,9 @@ var _ = Describe("pod mutation webhook", func() {
 							Spec: corev1.PersistentVolumeClaimSpec{
 								AccessModes:      []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
 								StorageClassName: ptr.To(topolsProvisionerStorageClassName),
-								Resources: corev1.ResourceRequirements{
+								Resources: corev1.VolumeResourceRequirements{
 									Requests: corev1.ResourceList{
-										"storage": *resource.NewQuantity(100<<30, resource.DecimalSI),
+										"storage": *resource.NewQuantity(100<<30, resource.BinarySI),
 									},
 								},
 							},
@@ -273,9 +286,9 @@ var _ = Describe("pod mutation webhook", func() {
 		pod = getPod()
 		request := pod.Spec.Containers[0].Resources.Requests[topols.CapacityResource]
 		limit := pod.Spec.Containers[0].Resources.Limits[topols.CapacityResource]
-		capacity := pod.Annotations[topols.CapacityKeyPrefix+"ssd"]
-		Expect(request.Value()).Should(BeNumerically("==", 1))
-		Expect(limit.Value()).Should(BeNumerically("==", 1))
+		capacity := pod.Annotations[topols.CapacityKeyPrefix+"dc1"]
+		Expect(request.Value()).Should(Equal(int64(1)))
+		Expect(limit.Value()).Should(Equal(int64(1)))
 		Expect(capacity).Should(Equal(strconv.Itoa(100 << 30)))
 	})
 
@@ -290,10 +303,10 @@ var _ = Describe("pod mutation webhook", func() {
 			},
 		}
 		pod.Spec.Containers[0].Resources.Requests = corev1.ResourceList{
-			"memory": *resource.NewQuantity(100, resource.DecimalSI),
+			"memory": *resource.NewQuantity(100, resource.BinarySI),
 		}
 		pod.Spec.Containers[0].Resources.Limits = corev1.ResourceList{
-			"memory": *resource.NewQuantity(100, resource.DecimalSI),
+			"memory": *resource.NewQuantity(100, resource.BinarySI),
 		}
 		err := k8sClient.Create(testCtx, pod)
 		Expect(err).ShouldNot(HaveOccurred())
@@ -301,10 +314,10 @@ var _ = Describe("pod mutation webhook", func() {
 		pod = getPod()
 		request := pod.Spec.Containers[0].Resources.Requests[topols.CapacityResource]
 		limit := pod.Spec.Containers[0].Resources.Limits[topols.CapacityResource]
-		capacity := pod.Annotations[topols.CapacityKeyPrefix+"ssd"]
-		Expect(request.Value()).Should(BeNumerically("==", 1))
-		Expect(limit.Value()).Should(BeNumerically("==", 1))
-		Expect(capacity).Should(Equal(strconv.Itoa(100 * 1024 * 1024)))
+		capacity := pod.Annotations[topols.CapacityKeyPrefix+"dc1"]
+		Expect(request.Value()).Should(Equal(int64(1)))
+		Expect(limit.Value()).Should(Equal(int64(1)))
+		Expect(capacity).Should(Equal(strconv.Itoa(100 << 30)))
 
 		mem := pod.Spec.Containers[0].Resources.Requests["memory"]
 		Expect(mem.Value()).Should(BeNumerically("==", 100))
@@ -349,13 +362,13 @@ var _ = Describe("pod mutation webhook", func() {
 			{
 				Name: "vol2",
 				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: pvcSource("pvc1"),
+					PersistentVolumeClaim: pvcSource("pvc1"), // 100<<30 capacity
 				},
 			},
 			{
 				Name: "vol3",
 				VolumeSource: corev1.VolumeSource{
-					PersistentVolumeClaim: pvcSource("pvc2"),
+					PersistentVolumeClaim: pvcSource("pvc2"), // 2<<30-1 capacity
 				},
 			},
 		}
@@ -364,9 +377,9 @@ var _ = Describe("pod mutation webhook", func() {
 
 		pod = getPod()
 		request := pod.Spec.Containers[0].Resources.Requests[topols.CapacityResource]
-		capacity := pod.Annotations[topols.CapacityKeyPrefix+"ssd"]
-		Expect(request.Value()).Should(BeNumerically("==", 1))
-		Expect(capacity).Should(Equal(strconv.Itoa((100 << 20) + (2<<30 - 1))))
+		capacity := pod.Annotations[topols.CapacityKeyPrefix+"dc1"]
+		Expect(request.Value()).Should(Equal(int64(1)))
+		Expect(capacity).Should(Equal(strconv.Itoa((100 << 30) + (2<<30 - 1))))
 	})
 
 	It("should handle PVC w/o storage class", func() {
@@ -386,5 +399,27 @@ var _ = Describe("pod mutation webhook", func() {
 		Expect(pod.Spec.Containers[0].Resources.Requests).To(BeEmpty())
 		Expect(pod.Spec.Containers[0].Resources.Limits).To(BeEmpty())
 		Expect(pod.Annotations).NotTo(HaveKey(topols.CapacityKeyPrefix))
+	})
+
+	It("should mutate pod w/ TopoLS PVC for Storage Requests <1Gi", func() {
+		pod := testPod()
+		pod.Spec.Volumes = []corev1.Volume{
+			{
+				Name: "vol1",
+				VolumeSource: corev1.VolumeSource{
+					PersistentVolumeClaim: pvcSource("pvc5"),
+				},
+			},
+		}
+		err := k8sClient.Create(testCtx, pod)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		pod = getPod()
+		request := pod.Spec.Containers[0].Resources.Requests[topols.CapacityResource]
+		limit := pod.Spec.Containers[0].Resources.Limits[topols.CapacityResource]
+		capacity := pod.Annotations[topols.CapacityKeyPrefix+"dc1"]
+		Expect(request.Value()).Should(Equal(int64(1)))
+		Expect(limit.Value()).Should(Equal(int64(1)))
+		Expect(capacity).Should(Equal(strconv.Itoa(500 * mebibyte)))
 	})
 })

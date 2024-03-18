@@ -1,8 +1,15 @@
-Limitations
-===========
+# Limitations <!-- omit in toc -->
 
-StorageClass reclaim policy
----------------------------
+<!-- Created by VSCode Markdown All in One command: Create Table of Contents -->
+- [StorageClass Reclaim Policy](#storageclass-reclaim-policy)
+- [Pod without PVC](#pod-without-pvc)
+- [Capacity Aware Scheduling May Go Wrong](#capacity-aware-scheduling-may-go-wrong)
+- [Snapshots Can Be Created Only for Thin Volumes](#snapshots-can-be-created-only-for-thin-volumes)
+- [Snapshots Can Be Restored Only on the Same Node with the Source Volume](#snapshots-can-be-restored-only-on-the-same-node-with-the-source-volume)
+- [Use lvcreate-options at Your Own Risk](#use-lvcreate-options-at-your-own-risk)
+- [Error when using TopoLVM on old Linux kernel hosts with official docker image](#error-when-using-topolvm-on-old-linux-kernel-hosts-with-official-docker-image)
+
+## StorageClass Reclaim Policy
 
 TopoLVM does not care about `Retain` [reclaim policy](https://kubernetes.io/docs/concepts/storage/storage-classes/#reclaim-policy)
 because CSI volumes can be referenced only via PersistentVolumeClaims.
@@ -14,8 +21,7 @@ Ref: https://kubernetes.io/docs/concepts/storage/volumes/#csi
 
 If you delete a PVC whose corresponding PV has `Retain` reclaim policy, the corresponding `LogicalVolume` resource and the LVM logical volume are *NOT* deleted. If you delete this `LogicalVolume` resource after deleting the PVC, the related LVM logical volume is also deleted.
 
-Pod without PVC
----------------
+## Pod without PVC
 
 TopoLVM expects that PVCs are created in advance of their Pods.
 However, the TopoLVM webhook does not block the creation of a Pod when there are missing PVCs for the Pod.
@@ -24,8 +30,7 @@ For such Pods, TopoLVM's extended scheduler will not work.
 
 The typical usage of TopoLVM is using StatefulSet with volumeClaimTemplate.
 
-Capacity-aware scheduling may go wrong
--------------------------
+## Capacity Aware Scheduling May Go Wrong
 
 Node storage capacity annotation is not updated in TopoLVM's extended scheduler.
 Therefore, when multiple pods requesting TopoLVM volumes are created at once, the extended scheduler cannot reference the exact capacity of the underlying LVM volume group.
@@ -33,15 +38,17 @@ Therefore, when multiple pods requesting TopoLVM volumes are created at once, th
 Note that pod scheduling is also affected by the amount of CPU and memory.
 Because of this, this problem may not be observable.
 
-Snapshots should be created only for a `BOUND` PVC
--------------------------
-Snapshot are currently supported only for thin volumes and is an experimental feature because CSI Sanity is skipped.
-The LVM snapshots are required to be provisioned on the same node as the source logical volume. Therefore, the source PVC must be provisioned before the target so that scheduling decisions can be taken accordingly.
+## Snapshots Can Be Created Only for Thin Volumes
 
-Note: Currently, support for snapshot creation is available only for thinly-provisioned volumes.
+It is because we now implemented the feature only for thin volumes.
+For thin volumes, it is easy to be implemented, however for thick volumes, it may be hard.
+For example, a thick volume which has its snapshots cannot be expanded without inactivating the snapshots.
 
-Use lvcreate-options at your own risk
--------------------------------------------
+## Snapshots Can Be Restored Only on the Same Node with the Source Volume
+
+Since TopoLVM uses LVM's snapshot feature, TopoLVM's snapshots can be restored only on the same node with the source logical volume.
+
+## Use lvcreate-options at Your Own Risk
 
 TopoLVM does not check the `lvcreate-options` that can optionally be added to a device-class.
 Therefore it cannot take them into consideration when scheduling, or do sanity checks for them.
@@ -55,7 +62,7 @@ You may want to tweak the `spare-gb` setting to avoid some issues with this.
 **Example**
 
 There is one VG `raid-vg` with two PVs (`disk1` and `disk2`).
-Then we create the following lvmd config:
+Then we create the following LVMd config:
 
 ```yaml
 device-classes:
@@ -85,3 +92,15 @@ This volume will use 100 GB in total since it is of type RAID1.
 The VG has 200 GB total and 100 GB spare configured so TopoLVM will now consider this VG full.
 
 For more details please see [this proposal](./proposals/lvcreate-options.md).
+
+## Error when using TopoLVM on old Linux kernel hosts with official docker image
+
+If you need to support older Linux kernel (like CentOS v7.x) in your environment, please build TopoLVM docker image with the older base image by yourself.
+
+When you use TopoLVM on old Linux kernel hosts with official docker image, you may see the following issues:
+
+- [mkfs.xfs incompatibility whith RHEL/Centos7.X #257](https://github.com/topolvm/topolvm/issues/257)
+- [xfs mount failed #283](https://github.com/topolvm/topolvm/issues/283)
+
+This is because the official docker image is based on Ubuntu 22.04 and [xfsprogs v5.13 or later](https://packages.ubuntu.com/search?keywords=xfsprogs). It is possible to use incompatible filesystem options on older Linux kernels. Also, we don't know which kernel version exactly causes the problem, because the official xfs Q&A does not provide compatible kernel versions.
+In the past, we used Ubuntu 18.04 as a base image and used older xfsprogs whenever possible, but Ubuntu 18.04 became the end of support and we have upgraded the base image version.

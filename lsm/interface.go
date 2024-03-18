@@ -1,6 +1,13 @@
 package lsm
 
-import "sigs.k8s.io/controller-runtime/pkg/manager"
+import (
+	"errors"
+
+	"sigs.k8s.io/controller-runtime/pkg/manager"
+)
+
+var ErrNoDeviceClass = errors.New("no such device class")
+var ErrNoVolume = errors.New("no such volume")
 
 type LogicalVolume struct {
 	Name        string

@@ -5,6 +5,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "topols.labels" . | nindent 4 }}
+    {{- with .Values.controller.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   replicas: {{ .Values.controller.replicaCount }}
   {{- with .Values.controller.minReadySeconds }}
@@ -22,6 +25,9 @@ spec:
       labels:
         app.kubernetes.io/component: controller
         {{ include "topols.selectorLabels" . | nindent 8 }}
+        {{- with .Values.controller.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.controller.terminationGracePeriodSeconds }}
       terminationGracePeriodSeconds: {{ . }}
@@ -37,17 +43,33 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ template "topols.fullname" . }}-controller
+      {{- with .Values.controller.initContainers }}
+      initContainers: {{ toYaml . | nindent 6 }}
+      {{- end }}
       containers:
         - name: topols-controller
           image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
           command:
             - /topols-controller
+            {{ if not .Values.controller.leaderElection.enabled }}
+            - --leader-election=false
+            {{ else }}
+            - --leader-election-namespace={{ .Release.Namespace }}
+            {{ end }}
+            {{- if or .Values.webhook.podMutatingWebhook.enabled .Values.webhook.pvcMutatingWebhook.enabled }}
             - --cert-dir=/certs
+            {{- else }}
+            - --enable-webhooks=false
+            {{- end }}
             {{- if .Values.controller.nodeFinalize.skipped }}
             - --skip-node-finalize
             {{- end }}
           {{- with .Values.controller.args }}
           args: {{ toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.env.topols_controller }}
+          env:
+            {{- toYaml . | nindent 12 }}
           {{- end }}
           ports:
             - containerPort: 9443
@@ -92,8 +114,10 @@ spec:
           volumeMounts:
             - name: socket-dir
               mountPath: /run/topols
+            {{- if or .Values.webhook.podMutatingWebhook.enabled .Values.webhook.pvcMutatingWebhook.enabled }}
             - name: certs
               mountPath: /certs
+            {{- end }}
 
         - name: csi-provisioner
           {{- if .Values.image.csi.csiProvisioner }}
@@ -107,12 +131,17 @@ spec:
           {{- with .Values.resources.csi_provisioner }}
           resources: {{ toYaml . | nindent 12 }}
           {{- end }}
+          {{- with .Values.env.csi_provisioner }}
+          env: {{ toYaml . | nindent 12 }}
+          {{- end }}
           command:
             - /csi-provisioner
             - --csi-address=/run/topols/csi-topols.sock
             - --feature-gates=Topology=true
+            {{ if .Values.controller.leaderElection.enabled }}
             - --leader-election
             - --leader-election-namespace={{ .Release.Namespace }}
+            {{ end }}
             - --http-endpoint=:9809
             {{- with .Values.controller.storageCapacityTracking.enabled }}
             - --enable-capacity
@@ -148,11 +177,16 @@ spec:
           {{- with .Values.resources.csi_resizer }}
           resources: {{ toYaml . | nindent 12 }}
           {{- end }}
+          {{- with .Values.env.csi_resizer }}
+          env: {{ toYaml . | nindent 12 }}
+          {{- end }}
           command:
             - /csi-resizer
             - --csi-address=/run/topols/csi-topols.sock
+            {{ if .Values.controller.leaderElection.enabled }}
             - --leader-election
             - --leader-election-namespace={{ .Release.Namespace }}
+            {{ end }}
             - --http-endpoint=:9810
           ports:
             - containerPort: 9810
@@ -174,12 +208,17 @@ spec:
           {{- with .Values.resources.csi_snapshotter }}
           resources: {{ toYaml . | nindent 12 }}
           {{- end }}
+          {{- with .Values.env.csi_snapshotter }}
+          env: {{- toYaml . | nindent 12 }}
+          {{- end }}
           command:
-          - /csi-snapshotter
-          - --csi-address=/run/topols/csi-topols.sock
-          - --leader-election
-          - --leader-election-namespace={{ .Release.Namespace }}
-          - --http-endpoint=:9811
+            - /csi-snapshotter
+            - --csi-address=/run/topols/csi-topols.sock
+            {{ if .Values.controller.leaderElection.enabled }}
+            - --leader-election
+            - --leader-election-namespace={{ .Release.Namespace }}
+            {{ end }}
+            - --http-endpoint=:9811
           ports:
             - containerPort: 9811
               name: csi-snapshotter
@@ -201,20 +240,22 @@ spec:
             - /livenessprobe
             - --csi-address=/run/topols/csi-topols.sock
             - --http-endpoint=:9808
-          ports:
-            - containerPort: 9808
-              name: livenessprobe
           volumeMounts:
             - name: socket-dir
               mountPath: /run/topols
           {{- with .Values.resources.liveness_probe }}
           resources: {{ toYaml . | nindent 12 }}
           {{- end }}
+          {{- with .Values.env.liveness_probe }}
+          env: {{ toYaml . | nindent 12 }}
+          {{- end }}
 
       volumes:
+        {{- if or .Values.webhook.podMutatingWebhook.enabled .Values.webhook.pvcMutatingWebhook.enabled }}
         - name: certs
           secret:
             secretName: {{ template "topols.fullname" . }}-mutatingwebhook
+        {{- end }}
         {{- with .Values.controller.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

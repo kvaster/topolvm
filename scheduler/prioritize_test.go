@@ -14,9 +14,9 @@ func TestScoreNodes(t *testing.T) {
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
-				topols.CapacityKeyPrefix + "ssd":  fmt.Sprintf("%d", 64<<30),
-				topols.CapacityKeyPrefix + "hdd1": fmt.Sprintf("%d", 64<<30),
-				topols.CapacityKeyPrefix + "hdd2": fmt.Sprintf("%d", 64<<30),
+				topols.CapacityKeyPrefix + "dc1": fmt.Sprintf("%d", 64<<30),
+				topols.CapacityKeyPrefix + "dc2": fmt.Sprintf("%d", 64<<30),
+				topols.CapacityKeyPrefix + "dc3": fmt.Sprintf("%d", 64<<30),
 			},
 		},
 	}
@@ -31,7 +31,7 @@ func TestScoreNodes(t *testing.T) {
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "10.1.1.3",
 				Annotations: map[string]string{
-					topols.CapacityKeyPrefix + "ssd": "foo",
+					topols.CapacityKeyPrefix + "dc1": "foo",
 				},
 			},
 		},
@@ -52,8 +52,8 @@ func TestScoreNodes(t *testing.T) {
 	}
 
 	weights := map[string]float64{
-		"ssd":  1,
-		"hdd1": 1.5,
+		"dc1": 1,
+		"dc2": 1.5,
 	}
 	result := scoreNodes(pod, input, weights)
 	if !reflect.DeepEqual(result, expected) {

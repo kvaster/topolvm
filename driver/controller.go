@@ -4,19 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/container-storage-interface/spec/lib/go/csi"
-	"github.com/golang/protobuf/ptypes/timestamp"
-	v1 "github.com/kvaster/topols/api/v1"
-	"github.com/kvaster/topols/driver/internal/k8s"
-	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/container-storage-interface/spec/lib/go/csi"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/kvaster/topols"
+	v1 "github.com/kvaster/topols/api/v1"
+	"github.com/kvaster/topols/driver/internal/k8s"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
 var ctrlLogger = ctrl.Log.WithName("driver").WithName("controller")
@@ -130,7 +130,7 @@ func (s controllerServerNoLocked) CreateVolume(ctx context.Context, req *csi.Cre
 		"accessibility_requirements", req.GetAccessibilityRequirements().String())
 
 	var (
-		//sourceID   string
+		// sourceID   string
 		sourceName string
 		sourceVol  *v1.LogicalVolume
 		err        error
@@ -180,8 +180,8 @@ func (s controllerServerNoLocked) CreateVolume(ctx context.Context, req *csi.Cre
 		// check if the volume has the same size as the source volume.
 		// TODO (Yuggupta27): Allow user to create a volume with more size than that of the source volume.
 		sourceSizeBytes := sourceVol.Spec.Size.Value()
-		if sourceSizeBytes != requestBytes {
-			return nil, status.Error(codes.OutOfRange, "requested size does not match the size of the source")
+		if requestBytes < sourceSizeBytes {
+			return nil, status.Error(codes.OutOfRange, "requested size is smaller than the size of the source")
 		}
 		// If a volume has a source, it has to provisioned on the same node and device class as the source volume.
 
@@ -495,12 +495,12 @@ func (s controllerServerNoLocked) ValidateVolumeCapabilities(ctx context.Context
 func (s controllerServerNoLocked) GetCapacity(ctx context.Context, req *csi.GetCapacityRequest) (*csi.GetCapacityResponse, error) {
 	topology := req.GetAccessibleTopology()
 	capabilities := req.GetVolumeCapabilities()
-	ctrlLogger.Info("GetCapacity called",
+	ctrlLogger.V(1).Info("GetCapacity called",
 		"volume_capabilities", capabilities,
 		"parameters", req.GetParameters(),
 		"accessible_topology", topology)
 	if capabilities != nil {
-		ctrlLogger.Info("capability argument is not nil, but TopoLS ignores it")
+		ctrlLogger.V(1).Info("capability argument is not nil, but TopoLS ignores it")
 	}
 
 	deviceClass := req.GetParameters()[topols.DeviceClassKey]
@@ -579,7 +579,7 @@ func (s controllerServerNoLocked) ControllerExpandVolume(ctx context.Context, re
 
 	lv, err := s.lvService.GetVolume(ctx, volumeID)
 	if err != nil {
-		if err == k8s.ErrVolumeNotFound {
+		if errors.Is(err, k8s.ErrVolumeNotFound) {
 			return nil, status.Errorf(codes.NotFound, "LogicalVolume for volume id %s is not found", volumeID)
 		}
 		return nil, status.Error(codes.Internal, err.Error())

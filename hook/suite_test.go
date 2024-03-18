@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	// +kubebuilder:scaffold:imports
+	//+kubebuilder:scaffold:imports
 )
 
 // These tests use Ginkgo (BDD-style Go testing framework). Refer to
@@ -60,7 +60,7 @@ func setupCommonResources() {
 		Provisioner:       "topols.kvaster.com",
 		VolumeBindingMode: modePtr(storagev1.VolumeBindingWaitForFirstConsumer),
 		Parameters: map[string]string{
-			topols.DeviceClassKey: "ssd",
+			topols.DeviceClassKey: "dc1",
 		},
 	}
 	err := k8sClient.Create(testCtx, sc)
@@ -73,7 +73,7 @@ func setupCommonResources() {
 		Provisioner:       "topols.kvaster.com",
 		VolumeBindingMode: modePtr(storagev1.VolumeBindingWaitForFirstConsumer),
 		Parameters: map[string]string{
-			topols.DeviceClassKey: "hdd1",
+			topols.DeviceClassKey: "dc2",
 		},
 	}
 	err = k8sClient.Create(testCtx, sc)
@@ -86,7 +86,7 @@ func setupCommonResources() {
 		Provisioner:       "topols.kvaster.com",
 		VolumeBindingMode: modePtr(storagev1.VolumeBindingWaitForFirstConsumer),
 		Parameters: map[string]string{
-			topols.DeviceClassKey: "hdd2",
+			topols.DeviceClassKey: "dc3",
 		},
 	}
 	err = k8sClient.Create(testCtx, sc)
@@ -99,7 +99,7 @@ func setupCommonResources() {
 		Provisioner:       "topols.kvaster.com",
 		VolumeBindingMode: modePtr(storagev1.VolumeBindingImmediate),
 		Parameters: map[string]string{
-			topols.DeviceClassKey: "ssd",
+			topols.DeviceClassKey: "dc1",
 		},
 	}
 	err = k8sClient.Create(testCtx, sc)

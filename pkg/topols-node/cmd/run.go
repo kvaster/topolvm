@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kvaster/topols"
 	topolsv1 "github.com/kvaster/topols/api/v1"
@@ -21,7 +23,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-	"time"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -46,9 +48,11 @@ func subMain() error {
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&config.zapOpts)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             scheme,
-		MetricsBindAddress: config.metricsAddr,
-		LeaderElection:     false,
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: config.metricsAddr,
+		},
+		LeaderElection: false,
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")

@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/kvaster/topols/getter"
 	"time"
 
 	"github.com/kvaster/topols"
 	topolsv1 "github.com/kvaster/topols/api/v1"
 	clientwrapper "github.com/kvaster/topols/client"
+	"github.com/kvaster/topols/getter"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"

@@ -3,16 +3,16 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/kvaster/topols"
 	"path/filepath"
 	"testing"
 	"time"
 
-	topolsv1 "github.com/kvaster/topols/api/v1"
+	"github.com/kvaster/topols"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"google.golang.org/grpc/codes"
 
+	topolsv1 "github.com/kvaster/topols/api/v1"
+	"google.golang.org/grpc/codes"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/conversion"

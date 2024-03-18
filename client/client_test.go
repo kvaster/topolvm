@@ -2,17 +2,18 @@ package client
 
 import (
 	"fmt"
+
 	"github.com/kvaster/topols"
-	topolsv1 "github.com/kvaster/topols/api/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"google.golang.org/grpc/codes"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	topolsv1 "github.com/kvaster/topols/api/v1"
+	"google.golang.org/grpc/codes"
 	corev1 "k8s.io/api/core/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const (

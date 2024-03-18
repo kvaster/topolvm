@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/kvaster/topols"
-	topolsv1 "github.com/kvaster/topols/api/v1"
 	"time"
 
+	"github.com/kvaster/topols"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	topolsv1 "github.com/kvaster/topols/api/v1"
 	corev1 "k8s.io/api/core/v1"
 	storegev1 "k8s.io/api/storage/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -83,7 +84,7 @@ var _ = Describe("NodeController controller", func() {
 				AccessModes: []corev1.PersistentVolumeAccessMode{
 					corev1.ReadWriteOnce,
 				},
-				Resources: corev1.ResourceRequirements{
+				Resources: corev1.VolumeResourceRequirements{
 					Requests: corev1.ResourceList{
 						corev1.ResourceStorage: *resource.NewQuantity(1, resource.BinarySI),
 					},

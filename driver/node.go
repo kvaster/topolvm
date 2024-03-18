@@ -372,7 +372,7 @@ func (s *nodeServerNoLocked) NodeExpandVolume(ctx context.Context, req *csi.Node
 	// `capacity_bytes` in NodeExpandVolumeResponse is defined as OPTIONAL.
 	// If this field needs to be filled, the value should be equal to `.status.currentSize` of the corresponding
 	// `LogicalVolume`, but currently the node plugin does not have an access to the resource.
-	// In addtion to this, Kubernetes does not care if the field is blank or not, so leave it blank.
+	// In addition to this, Kubernetes does not care if the field is blank or not, so leave it blank.
 	return &csi.NodeExpandVolumeResponse{}, nil
 }
 

@@ -2,6 +2,8 @@ package controllers
 
 import (
 	"context"
+	"time"
+
 	"github.com/kvaster/topols"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -11,7 +13,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 	crlog "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"time"
 )
 
 // PersistentVolumeClaimReconciler reconciles a PersistentVolumeClaim object

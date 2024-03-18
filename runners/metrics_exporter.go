@@ -2,18 +2,19 @@ package runners
 
 import (
 	"context"
-	"github.com/kvaster/topols/lsm"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/kvaster/topols"
+	"github.com/kvaster/topols/lsm"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
@@ -122,28 +123,29 @@ func (m *metricsExporter) updateNode(ctx context.Context, ch chan<- *lsm.DeviceC
 		ch <- s
 	}
 
-	var node corev1.Node
-	if err := m.client.Get(ctx, types.NamespacedName{Name: m.nodeName}, &node); err != nil {
+	var nodeMetadata v1.PartialObjectMetadata
+
+	nodeMetadata.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("Node"))
+	if err := m.client.Get(ctx, types.NamespacedName{Name: m.nodeName}, &nodeMetadata); err != nil {
 		return err
 	}
 
-	if node.DeletionTimestamp != nil {
+	if nodeMetadata.DeletionTimestamp != nil {
 		meLogger.Info("node is deleting")
 		return nil
 	}
+	nodeMetadata2 := nodeMetadata.DeepCopy()
 
-	node2 := node.DeepCopy()
-
-	controllerutil.AddFinalizer(node2, topols.NodeFinalizer)
+	controllerutil.AddFinalizer(nodeMetadata2, topols.NodeFinalizer)
 
 	if stats.Default != nil {
-		node2.Annotations[topols.DefaultDeviceClassKey] = stats.Default.DeviceClass
+		nodeMetadata2.Annotations[topols.DefaultDeviceClassKey] = stats.Default.DeviceClass
 	} else {
-		delete(node2.Annotations, topols.DefaultDeviceClassKey)
+		delete(nodeMetadata2.Annotations, topols.DefaultDeviceClassKey)
 	}
 
 	capacityKeys := make(map[string]struct{})
-	for k := range node2.Annotations {
+	for k := range nodeMetadata2.Annotations {
 		if strings.HasPrefix(k, topols.CapacityKeyPrefix) {
 			capacityKeys[k] = struct{}{}
 		}
@@ -151,15 +153,15 @@ func (m *metricsExporter) updateNode(ctx context.Context, ch chan<- *lsm.DeviceC
 
 	for _, s := range stats.DeviceClasses {
 		key := topols.CapacityKeyPrefix + s.DeviceClass
-		node2.Annotations[key] = strconv.FormatUint(s.TotalBytes-s.UsedBytes, 10)
+		nodeMetadata2.Annotations[key] = strconv.FormatUint(s.TotalBytes-s.UsedBytes, 10)
 		delete(capacityKeys, key)
 	}
 
 	for k := range capacityKeys {
-		delete(node2.Annotations, k)
+		delete(nodeMetadata2.Annotations, k)
 	}
 
-	if err := m.client.Patch(ctx, node2, client.MergeFrom(&node)); err != nil {
+	if err := m.client.Patch(ctx, nodeMetadata2, client.MergeFrom(&nodeMetadata)); err != nil {
 		return err
 	}
 

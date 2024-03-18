@@ -1,18 +1,27 @@
 package cmd
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 
-	"github.com/cybozu-go/well"
 	"github.com/kvaster/topols"
 	"github.com/kvaster/topols/scheduler"
 	"github.com/spf13/cobra"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/yaml"
 )
 
 var cfgFilePath string
+var zapOpts zap.Options
 
 const defaultListenAddr = ":8000"
 
@@ -55,15 +64,13 @@ and can be changed by config.
 `,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cmd.SilenceUsage = true
-		return subMain()
+		return subMain(cmd.Context())
 	},
 }
 
-func subMain() error {
-	err := well.LogConfig{}.Apply()
-	if err != nil {
-		return err
-	}
+func subMain(parentCtx context.Context) error {
+	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&zapOpts)))
+	logger := log.FromContext(parentCtx)
 
 	if len(cfgFilePath) != 0 {
 		b, err := os.ReadFile(cfgFilePath)
@@ -81,23 +88,31 @@ func subMain() error {
 		return err
 	}
 
-	serv := &well.HTTPServer{
-		Server: &http.Server{
-			Addr:    config.ListenAddr,
-			Handler: h,
-		},
+	serv := &http.Server{
+		Addr:        config.ListenAddr,
+		Handler:     accessLogHandler(parentCtx, h),
+		ReadTimeout: 30 * time.Second,
 	}
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	ctx, stop := signal.NotifyContext(parentCtx, os.Interrupt, syscall.SIGTERM)
+	defer stop() // stop() should be called before wg.Wait() to stop the goroutine correctly.
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
+		if err := serv.Shutdown(parentCtx); err != nil {
+			logger.Error(err, "failed to shutdown gracefully")
+		}
+	}()
 
 	err = serv.ListenAndServe()
-	if err != nil {
+	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
-	err = well.Wait()
-
-	if err != nil && !well.IsSignaled(err) {
-		return err
-	}
-
 	return nil
 }
 

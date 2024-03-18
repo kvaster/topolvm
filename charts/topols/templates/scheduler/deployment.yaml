@@ -7,6 +7,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "topols.labels" . | nindent 4 }}
+    {{- with .Values.scheduler.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   replicas: {{ required ".Values.scheduler.deployment.replicaCount" .Values.scheduler.deployment.replicaCount }}
   {{- with .Values.scheduler.minReadySeconds }}
@@ -26,6 +29,9 @@ spec:
       labels:
         app.kubernetes.io/component: scheduler
         {{ include "topols.selectorLabels" . | nindent 8 }}
+        {{- with .Values.scheduler.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- with .Values.securityContext }}
       securityContext: {{ toYaml . | nindent 8 }}
@@ -52,6 +58,10 @@ spec:
             - --config=/etc/topols/scheduler-options.yaml
           {{- with .Values.scheduler.args }}
           args: {{ toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.env.topols_scheduler }}
+          env:
+            {{- toYaml . | nindent 12 }}
           {{- end }}
           ports:
           - containerPort: {{ .Values.scheduler.options.listen.port }}

@@ -1,17 +1,15 @@
-Maintenance guide
-=================
+# Maintenance Guide
 
 This is the maintenance guide for TopoLVM.
 
-How to upgrade supported Kubernetes version
--------------------------------------------
+## How to Upgrade Supported Kubernetes Version
 
 TopoLVM depends on some Kubernetes repositories like `k8s.io/client-go` and should support 3 consecutive Kubernets versions at a time.
 Here is the guide for how to upgrade the supported versions.
 Issues and PRs related to the last upgrade task also help you understand how to upgrade the supported versions,
 so checking them together with this guide is recommended when you do this task.
 
-### Upgrade procedure
+### Upgrade Procedure
 
 Please write down to the Github issue of this task what kinds of changes we find in the release note and what we are going to do and NOT going to do to address the changes.
 The format is up to you, but this is very important to keep track of what changes are made in this task, so please do not forget to do it.
@@ -19,19 +17,14 @@ The format is up to you, but this is very important to keep track of what change
 Basically, we should pay attention to breaking changes and security fixes first.
 If we find some interesting features added in new versions, please consider if we are going to use them or not and make a GitHub issue to incorporate them after the upgrading task is done.
 
-Note: Ubuntu 18.04 is used to keep the backward compatibility of XFS formatting. (https://github.com/topolvm/topolvm/pull/306)
-
 #### Kubernetes
 
 Choose the next version and check the [release note](https://kubernetes.io/docs/setup/release/notes/). e.g. 1.17, 1.18, 1.19 -> 1.18, 1.19, 1.20
 
 Edit the following files.
 - `README.md`
-- `deploy/README.md`
-- `Makefile`
-- `e2e/Makefile`
-- `example/Makefile`
-- `.github/workflows/e2e-k8s-daemonset-lvmd.yaml`
+- `versions.mk`
+- `.github/workflows/e2e-k8s-incluster-lvmd.yaml`
 - `.github/workflows/e2e-k8s-workflow.yaml`
 
 Next, we should update `go.mod` by the following commands.
@@ -77,11 +70,13 @@ These are minimal changes for the Kubernetes upgrade, but if there are some brea
 Choose the same version of Go [used by the latest Kubernetes](https://github.com/kubernetes/kubernetes/blob/master/go.mod) supported by TopoLVM.
 
 Edit the following files.
-- go.mod
-- Dockerfile
-- Dockerfile.with-sidecar
+- `go.mod`
+- `Dockerfile`
 
-#### CSI sidecars
+#### CSI Sidecars
+
+> [!NOTE]
+> TopoLVM builds csi-sidecars for the cases that we want to use own-patched binaries (e.g. can't wait official binaries in case of emergency.)
 
 TopoLVM does not use all the sidecars listed [here](https://kubernetes-csi.github.io/docs/sidecar-containers.html).
 Have a look at `csi-sidecars.mk` first and understand what sidecars are actually being used.
@@ -90,7 +85,7 @@ Check the release pages of the sidecars under [kubernetes-csi](https://github.co
 
 DO NOT follow the "Status and Releases" tables in this [page](https://kubernetes-csi.github.io/docs/sidecar-containers.html) and the README.md files in the sidecar repositories because they are sometimes not updated properly.
 
-Edit `csi-sidecars.mk` to change sidecars' version.
+Edit `versions.mk` to change sidecars' version.
 
 Read the change logs which are linked from the release pages.
 Confirm diffs of RBAC between published files in upstream and following ones, and update it if required.
@@ -99,14 +94,9 @@ For example, see https://github.com/kubernetes-csi/external-provisioner/blob/mas
 - `charts/topolvm/templates/controller/clusterroles.yaml`
 - `charts/topolvm/templates/controller/roles.yaml`
 
-#### Depending tools
+#### Depending Tools
 
-The depending tools versions are specified in the following files.
-
-- `Makefile`
-- `common.mk`
-- `e2e/Makefile`
-- `example/Makefile`
+The depending tools versions are specified in `versions.mk`.
 
 The following tools do not depend on other software, use latest versions.
 
@@ -119,25 +109,23 @@ The following tools depend on kubernetes, use appropriate version associating to
 - [kind](https://github.com/kubernetes-sigs/kind/releases)
 - [minikube](https://github.com/kubernetes/minikube/releases)
 
-In `.github/workflows/e2e-k8s-daemonset-lvmd.yaml`, minikube depends on some other tools,
+In `.github/workflows/e2e-k8s-incluster-lvmd.yaml`, minikube depends on some other tools,
 so please check if these tools are also needed to be upgraded.
 
-#### Depending modules
+#### Depending Modules
 
 Read [kubernetes go.mod](https://github.com/kubernetes/kubernetes/blob/master/go.mod), and update the `prometheus/*` and `grpc` modules.
 
-Read [csi-test go.mod](https://github.com/kubernetes-csi/csi-test/blob/master/go.mod), and update the `ginkgo` and `gomega` modules.
-
-#### Update upstream information
+#### Update Upstream Information
 
 Visit [the upstream web page](https://kubernetes-csi.github.io/docs/drivers.html) to check current TopoLVM information. If some information is old, create PR to update the information
 
-#### Final check
+#### Final Check
 
-`git grep 1.18`, `git grep image:`, and `git grep -i VERSION` might help us avoid overlooking necessary changes.
+`git grep <dropped kubernetes version e.g. 1.18>`, `git grep image:`, `git grep -i VERSION` and looking `versions.mk` might help us avoid overlooking necessary changes.
 Please update the versions in the code and docs with great care.
 
-## How to upgrade supported CSI version
+## How to Upgrade Supported CSI Version
 
 Read the [release note](https://github.com/container-storage-interface/spec/releases) and check all the changes from the current version to the latest.
 
@@ -146,3 +134,4 @@ Basically, CSI spec should NOT be upgraded aggressively.
 Upgrade the CSI version only if new features we should cover are introduced in newer versions, or the Kubernetes versions TopoLVM is going to support does not support the current CSI version.
 
 For updating CSI spec, update the version of `github.com/container-storage-interface/spec` in `go.mod`.
+When updating CSI spec, please also upgrade the version of `github.com/kubernetes-csi/csi-test`.

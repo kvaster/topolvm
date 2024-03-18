@@ -3,11 +3,11 @@ package hook
 import (
 	"context"
 	"encoding/json"
-	"github.com/kvaster/topols/getter"
 	"net/http"
 	"strconv"
 
 	"github.com/kvaster/topols"
+	"github.com/kvaster/topols/getter"
 	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
@@ -221,7 +221,7 @@ func (m *podMutator) pvcCapacity(
 
 func (m *podMutator) ephemeralCapacity(
 	ctx context.Context,
-	pod *corev1.Pod,
+	_ *corev1.Pod,
 	vol corev1.Volume,
 	targetSC targetSC,
 ) (string, int64, error) {

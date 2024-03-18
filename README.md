@@ -9,7 +9,7 @@ TopoLS runs in separate namespace and can be installed alongside with TopoLVM.
 
 TopoLS code is ready for testing, but documentation is not yet finished (even touched), so please wait for corrected docs.
 
-Last synced to TopoLVM code on 22 May 2023 at commit 995c3e2dc8e299fbdb8731f447893906b966a4e4.
+Last synced to TopoLVM code on 17 Mar 2024 at commit 976abaf1ffc6c5ab3a6336e0f6a9d8b1852e5d54.
 
 TopoLS
 ======
@@ -23,7 +23,7 @@ It can be considered as a specific implementation of [local persistent volumes](
 Supported environments
 ----------------------
 
-- Kubernetes: 1.26, 1.25, 1.24
+- Kubernetes: 1.29, 1.28, 1.27
 - Node OS: Linux
 - Filesystems: btrfs
 

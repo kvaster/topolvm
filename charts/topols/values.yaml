@@ -81,11 +81,6 @@ scheduler:
           - matchExpressions:
               - key: node-role.kubernetes.io/control-plane
                 operator: Exists
-          # node-role.kubernetes.io/master label is not used in k8s 1.24+.
-          # TODO: remove this when minimum supported version becomes 1.24.
-          - matchExpressions:
-              - key: node-role.kubernetes.io/master
-                operator: Exists
 
   podDisruptionBudget:
     # scheduler.podDisruptionBudget.enabled -- Specify podDisruptionBudget enabled.
@@ -97,11 +92,6 @@ scheduler:
     - key: CriticalAddonsOnly
       operator: Exists
     - key: node-role.kubernetes.io/control-plane
-      effect: NoSchedule
-    # node-role.kubernetes.io/master taint will not be used in k8s 1.25+.
-    # cf. https://github.com/kubernetes/enhancements/blob/master/keps/sig-cluster-lifecycle/kubeadm/2067-rename-master-label-taint/README.md
-    # TODO: remove this when minimum supported version becomes 1.25.
-    - key: node-role.kubernetes.io/master
       effect: NoSchedule
 
   # scheduler.nodeSelector -- Specify nodeSelector on the Deployment or DaemonSet.
@@ -124,6 +114,11 @@ scheduler:
       host: localhost
       # scheduler.options.listen.port -- Listen port.
       port: 9251
+
+  # scheduler.podLabels -- Additional labels to be set on the scheduler pods.
+  podLabels: {}
+  # scheduler.labels -- Additional labels to be added to the Deployment or Daemonset.
+  labels: {}
 
 # CSI node service
 node:
@@ -222,6 +217,15 @@ node:
   #      path: /mnt/pool
   #      type: DirectoryOrCreate
 
+  # node.additionalVolumes -- Specify additional volumes without conflicting with default volumes
+  # most useful for initContainers but available to all containers in the pod.
+  additionalVolumes: []
+  #  - name: custom-config-map
+  #    configMap:
+  # # Provide the name of the ConfigMap containing the files you want
+  # # to add to the container
+  # name: special-config
+
   volumeMounts:
     # node.volumeMounts.topolsNode -- Specify volumeMounts for topols-node container.
     topolsNode: []
@@ -236,22 +240,20 @@ node:
     #  - name: mount-pool
     #    mountPath: /mnt/pool
 
-  psp:
-    # node.psp.allowedHostPaths -- Specify allowedHostPaths.
-    allowedHostPaths: []
-    #  - pathPrefix: "/var/lib/kubelet"
-    #    readOnly: false
-    #  - pathPrefix: "/run/topols"
-    #    readOnly: false
-    #  - pathPrefix: "/mnt/pool"
-    #    readOnly: false
-
   # node.updateStrategy -- Specify updateStrategy.
   updateStrategy: {}
   #  type: RollingUpdate
   #  rollingUpdate:
   #    maxSurge: 50%
   #    maxUnavailable: 50%
+
+  # node.podLabels -- Additional labels to be set on the node pods.
+  podLabels: {}
+  # node.labels -- Additional labels to be added to the Daemonset.
+  labels: {}
+
+  # node.initContainers -- Additional initContainers for the node service.
+  initContainers: []
 
 # CSI controller service
 controller:
@@ -272,6 +274,10 @@ controller:
   nodeFinalize:
     # controller.nodeFinalize.skipped -- Skip automatic cleanup of PhysicalVolumeClaims when a Node is deleted.
     skipped: false
+
+  leaderElection:
+    # controller.leaderElection.enabled -- Enable leader election for controller and all sidecars.
+    enabled: true
 
   prometheus:
     podMonitor:
@@ -318,6 +324,9 @@ controller:
   #  rollingUpdate:
   #    maxSurge: 50%
   #    maxUnavailable: 50%
+  #
+  # For non-leader-election mode, you can use this non-HA non-conflicting strategy:
+  #  type: Recreate
 
   # controller.minReadySeconds -- (int) Specify minReadySeconds.
   minReadySeconds:  # 0
@@ -355,6 +364,14 @@ controller:
   podDisruptionBudget:
     # controller.podDisruptionBudget.enabled -- Specify podDisruptionBudget enabled.
     enabled: true
+
+  # controller.podLabels -- Additional labels to be set on the controller pod.
+  podLabels: {}
+  # controller.labels -- Additional labels to be added to the Deployment.
+  labels: {}
+
+  # controller.initContainers -- Additional initContainers for the controller service.
+  initContainers: []
 
 resources:
   # resources.topols_node -- Specify resources.
@@ -430,6 +447,24 @@ resources:
   #    memory: "200Mi"
   #    cpu: "200m"
 
+env:
+  # env.topols_node -- Specify environment variables for topols_node container.
+  topols_node: []
+  # env.csi_registrar -- Specify environment variables for csi_registrar container.
+  csi_registrar: []
+  # env.liveness_probe -- Specify environment variables for liveness_probe container.
+  liveness_probe: []
+  # env.topols_controller -- Specify environment variables for topols_controller container.
+  topols_controller: []
+  # env.csi_provisioner -- Specify environment variables for csi_provisioner container.
+  csi_provisioner: []
+  # env.csi_resizer -- Specify environment variables for csi_resizer container.
+  csi_resizer: []
+  # env.csi_snapshotter -- Specify environment variables for csi_snapshotter container.
+  csi_snapshotter: []
+  # env.topols_scheduler -- Specify environment variables for topols_scheduler container.
+  topols_scheduler: []
+
 livenessProbe:
   # livenessProbe.topols_node -- Specify resources.
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
@@ -502,11 +537,6 @@ securityContext:
   runAsUser: 10000
   # securityContext.runAsGroup -- Specify runAsGroup.
   runAsGroup: 10000
-
-podSecurityPolicy:
-  # podSecurityPolicy.create -- Enable pod security policy.
-  ## ref: https://kubernetes.io/docs/concepts/policy/pod-security-policy/
-  create: true
 
 cert-manager:
   # cert-manager.enabled -- Install cert-manager together.

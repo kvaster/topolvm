@@ -20,7 +20,7 @@ metadata:
 provisioner: topols.kvaster.com
 parameters:
   {{- with $val.storageClass.additionalParameters }}
-  {{- toYaml . | nindent 2 }}
+  {{- tpl (toYaml .) $global | nindent 2 }}
   {{- end }}
 {{- with $val.storageClass.reclaimPolicy }}
 reclaimPolicy: {{ . }}

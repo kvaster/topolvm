@@ -1,5 +1,5 @@
 # Build Container
-FROM --platform=$BUILDPLATFORM golang:1.20-alpine AS build-topols
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS build-topols
 
 # Get argument
 ARG TOPOLS_VERSION

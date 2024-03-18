@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/go-logr/logr"
@@ -141,27 +142,16 @@ func (r *LogicalVolumeReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 
 func (r *LogicalVolumeReconciler) removeLVIfExists(ctx context.Context, log logr.Logger, lv *topolsv1.LogicalVolume) error {
-	// Finalizer's process ( RemoveLV then removeString ) is not atomic,
-	// so checking existence of LV to ensure its idempotence
-	volumes, err := r.lsmc.GetLVList(lv.Spec.DeviceClass)
-	if err != nil {
-		log.Error(err, "failed to list LV")
-		return err
-	}
-
-	for _, v := range volumes {
-		if v.Name != string(lv.UID) {
-			continue
-		}
-		err := r.lsmc.RemoveLV(string(lv.UID), lv.Spec.DeviceClass)
-		if err != nil {
-			log.Error(err, "failed to remove LV", "name", lv.Name, "uid", lv.UID)
-			return err
-		}
-		log.Info("removed LV", "name", lv.Name, "uid", lv.UID)
+	err := r.lsmc.RemoveLV(string(lv.UID), lv.Spec.DeviceClass)
+	if errors.Is(err, lsm.ErrNoVolume) {
+		log.Info("LV already removed", "name", lv.Name, "uid", lv.UID)
 		return nil
 	}
-	log.Info("LV already removed", "name", lv.Name, "uid", lv.UID)
+	if err != nil {
+		log.Error(err, "failed to remove LV", "name", lv.Name, "uid", lv.UID)
+		return err
+	}
+	log.Info("removed LV", "name", lv.Name, "uid", lv.UID)
 	return nil
 }
 

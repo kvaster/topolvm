@@ -5,6 +5,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "topols.labels" . | nindent 4 }}
+    {{- with .Values.node.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   {{- with .Values.node.updateStrategy }}
   updateStrategy: {{ toYaml . | nindent 4 }}
@@ -18,6 +21,9 @@ spec:
       labels:
         app.kubernetes.io/component: node
         {{ include "topols.selectorLabels" . | nindent 8 }}
+        {{- with .Values.node.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       {{- if and .Values.node.metrics.enabled .Values.node.metrics.annotations }}
       annotations: {{ toYaml .Values.node.metrics.annotations | nindent 8 }}
       {{- end }}
@@ -30,6 +36,9 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ template "topols.fullname" . }}-node
+      {{- with .Values.node.initContainers }}
+      initContainers: {{ toYaml . | nindent 6 }}
+      {{- end }}
       containers:
         - name: topols-node
           image: "{{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}"
@@ -77,6 +86,9 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            {{- with .Values.env.topols_node }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           volumeMounts:
             {{- if .Values.node.volumeMounts.topolvmNode }}
             {{- toYaml .Values.node.volumeMounts.topolvmNode | nindent 12 }}
@@ -129,6 +141,9 @@ spec:
           {{- with .Values.resources.csi_registrar }}
           resources: {{ toYaml . | nindent 12 }}
           {{- end }}
+          {{- with .Values.env.csi_registrar }}
+          env: {{ toYaml . | nindent 12 }}
+          {{- end }}
           volumeMounts:
             - name: node-plugin-dir
               mountPath: {{ .Values.node.kubeletWorkDirectory }}/plugins/topols.kvaster.com/node/
@@ -148,11 +163,11 @@ spec:
             - /livenessprobe
             - --csi-address={{ .Values.node.kubeletWorkDirectory }}/plugins/topols.kvaster.com/node/csi-topols.sock
             - --http-endpoint=:9808
-          ports:
-            - containerPort: 9808
-              name: livenessprobe
           {{- with .Values.resources.liveness_probe }}
           resources: {{ toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.env.liveness_probe }}
+          env: {{ toYaml . | nindent 12 }}
           {{- end }}
           volumeMounts:
             - name: node-plugin-dir
@@ -162,26 +177,29 @@ spec:
         {{- if .Values.node.volumes }}
         {{- toYaml .Values.node.volumes | nindent 8 }}
         {{- else }}
-      - name: registration-dir
-        hostPath:
-          path: {{ .Values.node.kubeletWorkDirectory }}/plugins_registry/
-          type: Directory
-      - name: node-plugin-dir
-        hostPath:
-          path: {{ .Values.node.kubeletWorkDirectory }}/plugins/topols.kvaster.com/node
-          type: DirectoryOrCreate
-      - name: csi-plugin-dir
-        hostPath:
-          path: {{ .Values.node.kubeletWorkDirectory }}/plugins/kubernetes.io/csi
-          type: DirectoryOrCreate
-      - name: pod-volumes-dir
-        hostPath:
-          path: {{ .Values.node.kubeletWorkDirectory }}/pods/
-          type: DirectoryOrCreate
-      - name: pool-dir
-        hostPath:
-          path: {{ dir .Values.node.poolPath }}
-          type: Directory
+        - name: registration-dir
+          hostPath:
+            path: {{ .Values.node.kubeletWorkDirectory }}/plugins_registry/
+            type: Directory
+        - name: node-plugin-dir
+          hostPath:
+            path: {{ .Values.node.kubeletWorkDirectory }}/plugins/topols.kvaster.com/node
+            type: DirectoryOrCreate
+        - name: csi-plugin-dir
+          hostPath:
+            path: {{ .Values.node.kubeletWorkDirectory }}/plugins/kubernetes.io/csi
+            type: DirectoryOrCreate
+        - name: pod-volumes-dir
+          hostPath:
+            path: {{ .Values.node.kubeletWorkDirectory }}/pods/
+            type: DirectoryOrCreate
+        - name: pool-dir
+          hostPath:
+            path: {{ dir .Values.node.poolPath }}
+            type: Directory
+        {{- end }}
+        {{- with .Values.node.additionalVolumes }}
+        {{- toYaml . | nindent 8 }}
         {{- end }}
 
       {{- with .Values.node.tolerations }}

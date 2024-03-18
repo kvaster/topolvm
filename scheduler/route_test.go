@@ -19,7 +19,7 @@ var extenderArgs = ExtenderArgs{
 	Pod: &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
-				topols.CapacityKeyPrefix + "ssd": strconv.Itoa(3 << 30),
+				topols.CapacityKeyPrefix + "dc1": strconv.Itoa(3 << 30),
 			},
 		},
 		Spec: corev1.PodSpec{
@@ -46,7 +46,7 @@ func testPredicate(t *testing.T) {
 	t.Parallel()
 
 	handler, err := NewHandler(map[string]float64{
-		"ssd": 1,
+		"dc1": 1,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -93,7 +93,7 @@ func testPrioritize(t *testing.T) {
 	t.Parallel()
 
 	handler, err := NewHandler(map[string]float64{
-		"ssd": 1,
+		"dc1": 1,
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -23,6 +23,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 	//+kubebuilder:scaffold:imports
 )
@@ -57,37 +59,50 @@ func subMain() error {
 		return fmt.Errorf("invalid webhook port: %v", err)
 	}
 	mgr, err := ctrl.NewManager(cfg, ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     config.metricsAddr,
-		HealthProbeBindAddress: config.healthAddr,
-		LeaderElection:         true,
-		LeaderElectionID:       config.leaderElectionID,
-		Host:                   hookHost,
-		Port:                   hookPort,
-		CertDir:                config.certDir,
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: config.metricsAddr,
+		},
+		HealthProbeBindAddress:  config.healthAddr,
+		LeaderElection:          config.leaderElection,
+		LeaderElectionID:        config.leaderElectionID,
+		LeaderElectionNamespace: config.leaderElectionNamespace,
+		RenewDeadline:           &config.leaderElectionRenewDeadline,
+		RetryPeriod:             &config.leaderElectionRetryPeriod,
+		LeaseDuration:           &config.leaderElectionLeaseDuration,
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Host:    hookHost,
+			Port:    hookPort,
+			CertDir: config.certDir,
+		}),
 	})
 	if err != nil {
 		return err
 	}
 
-	reader := clientwrapper.NewWrappedClient(mgr.GetClient())
+	client := clientwrapper.NewWrappedClient(mgr.GetClient())
 	apiReader := clientwrapper.NewWrappedReader(mgr.GetAPIReader(), mgr.GetClient().Scheme())
 
-	// register webhook handlers
-	// admissoin.NewDecoder never returns non-nil error
-	dec := admission.NewDecoder(scheme)
-	wh := mgr.GetWebhookServer()
-	wh.Register("/pod/mutate", hook.PodMutator(reader, apiReader, dec))
-	wh.Register("/pvc/mutate", hook.PVCMutator(reader, apiReader, dec))
+	if config.enableWebhooks {
+		// register webhook handlers
+		// admission.NewDecoder never returns non-nil error
+		dec := admission.NewDecoder(scheme)
+		wh := mgr.GetWebhookServer()
+		wh.Register("/pod/mutate", hook.PodMutator(client, apiReader, dec))
+		wh.Register("/pvc/mutate", hook.PVCMutator(client, apiReader, dec))
+		if err := mgr.AddReadyzCheck("webhook", wh.StartedChecker()); err != nil {
+			return err
+		}
+	}
 
 	// register controllers
-	nodecontroller := controllers.NewNodeReconciler(reader, config.skipNodeFinalize)
+	nodecontroller := controllers.NewNodeReconciler(client, config.skipNodeFinalize)
 	if err := nodecontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Node")
 		return err
 	}
 
-	pvccontroller := controllers.NewPersistentVolumeClaimReconciler(reader, apiReader)
+	pvccontroller := controllers.NewPersistentVolumeClaimReconciler(client, apiReader)
 	if err := pvccontroller.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "PersistentVolumeClaim")
 		return err
@@ -129,9 +144,6 @@ func subMain() error {
 		return err
 	}
 	if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
-		return err
-	}
-	if err := mgr.AddReadyzCheck("webhook", wh.StartedChecker()); err != nil {
 		return err
 	}
 

@@ -13,7 +13,7 @@ import (
 	"sync"
 
 	"github.com/fsnotify/fsnotify"
-	chattr "github.com/g0rbe/go-chattr"
+	"github.com/g0rbe/go-chattr"
 	"k8s.io/apimachinery/pkg/api/resource"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/yaml"
@@ -28,8 +28,6 @@ var subvolRegexp = regexp.MustCompile(`\s*Subvolume ID:\s*(\d+)\s*`)
 var errParseInfo = errors.New("error parsing info")
 var errWatch = errors.New("watch error")
 var errExec = errors.New("execute error")
-var errNoDeviceClass = errors.New("no such device class")
-var errNoVolume = errors.New("no such volume")
 
 const configFile = "devices.yml"
 
@@ -106,7 +104,7 @@ func (c *btrfs) CreateLV(name, deviceClass string, noCow bool, size uint64) (*Lo
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return nil, errNoDeviceClass
+		return nil, ErrNoDeviceClass
 	}
 
 	v := &LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size}
@@ -151,7 +149,7 @@ func (c *btrfs) CreateLVSnapshot(name, deviceClass, sourceVolID string, size uin
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return nil, errNoDeviceClass
+		return nil, ErrNoDeviceClass
 	}
 
 	v := &LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size}
@@ -213,12 +211,12 @@ func (c *btrfs) RemoveLV(name, deviceClass string) error {
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return errNoDeviceClass
+		return ErrNoDeviceClass
 	}
 
 	v := dc.findVolume(name)
 	if v == nil {
-		return errNoVolume
+		return ErrNoVolume
 	}
 
 	path := c.GetPath(v)
@@ -242,12 +240,12 @@ func (c *btrfs) ResizeLV(name, deviceClass string, size uint64) error {
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return errNoDeviceClass
+		return ErrNoDeviceClass
 	}
 
 	v := dc.findVolume(name)
 	if v == nil {
-		return errNoVolume
+		return ErrNoVolume
 	}
 
 	path := c.GetPath(v)
@@ -276,12 +274,12 @@ func (c *btrfs) VolumeStats(name, deviceClass string) (*VolumeStats, error) {
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return nil, errNoDeviceClass
+		return nil, ErrNoDeviceClass
 	}
 
 	v := dc.findVolume(name)
 	if v == nil {
-		return nil, errNoVolume
+		return nil, ErrNoVolume
 	}
 
 	path := c.GetPath(v)

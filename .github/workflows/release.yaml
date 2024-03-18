@@ -19,22 +19,22 @@ jobs:
           if [ $(echo $VERSION | grep "-") ]; then PRERELEASE=true; else PRERELEASE=false; fi
           echo "version=${VERSION}" >> ${GITHUB_OUTPUT}
           echo "prerelease=${PRERELEASE}" >> ${GITHUB_OUTPUT}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GHCR }}
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+        uses: docker/setup-buildx-action@v3
       - name: Cache go dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: go-${{ hashFiles('go.sum', 'Makefile') }}
+          key: go-${{ hashFiles('go.sum', 'Makefile', 'versions.mk') }}
           restore-keys: |
             go-
       - name: Build and push
