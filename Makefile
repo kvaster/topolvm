@@ -67,7 +67,7 @@ manifests: ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefin
 		crd:crdVersions=v1 \
 		rbac:roleName=topols-controller \
 		webhook \
-		paths="./api/...;./controllers;./hook;./driver/internal/k8s;./pkg/..." \
+		paths="./api/...;./internal/...;./cmd/..." \
 		output:crd:artifacts:config=config/crd/bases
 	cat config/crd/bases/topols.kvaster.com_logicalvolumes.yaml > charts/topols/templates/crds/topols.kvaster.com_logicalvolumes.yaml
 
@@ -109,7 +109,7 @@ groupname-test: ## Run unit tests that depends on the groupname.
 	go install ./...
 
 	mkdir -p $(ENVTEST_ASSETS_DIR)
-	source <($(BINDIR)/setup-envtest use $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p env); GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn TEST_LEGACY=true go test -count=1 -race -v --timeout=60s ./client/*
+	source <($(BINDIR)/setup-envtest use $(ENVTEST_KUBERNETES_VERSION) --bin-dir=$(ENVTEST_ASSETS_DIR) -p env); GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn TEST_LEGACY=true go test -count=1 -race -v --timeout=60s ./internal/client/*
 	TEST_LEGACY=true go test -count=1 -race -v --timeout=60s ./constants*.go
 
 .PHONY: clean
@@ -131,7 +131,7 @@ build-topols: build/hypertopols
 
 build/hypertopols: $(GO_FILES)
 	mkdir -p build
-	GOARCH=$(GOARCH) go build -o $@ -ldflags "-w -s -X github.com/kvaster/topols.Version=$(TOPOLS_VERSION)" ./pkg/hypertopols
+	GOARCH=$(GOARCH) go build -o $@ -ldflags "-w -s -X github.com/kvaster/topols.Version=$(TOPOLS_VERSION)" ./cmd/hypertopols
 
 .PHONY: csi-sidecars
 csi-sidecars: ## Build sidecar binaries.
