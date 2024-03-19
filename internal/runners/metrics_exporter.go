@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/kvaster/topols"
-	"github.com/kvaster/topols/internal/lsm"
+	"github.com/kvaster/topols/pkg/lsm"
 	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"

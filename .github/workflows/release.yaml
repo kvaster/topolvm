@@ -4,11 +4,15 @@ on:
     tags:
       - 'v*'
 jobs:
-  release:
-    name: release
-    runs-on: ubuntu-20.04
+  prepare:
+    name: "prepare"
+    outputs:
+      version: ${{ steps.check_version.outputs.version }}
+      prerelease: ${{ steps.check_version.outputs.prerelease }}
+      image_prefix: ${{ steps.export_image_prefix.outputs.image_prefix }}
+    runs-on: "ubuntu-latest"
     steps:
-      - name: Validate Release Version
+      - name: "Validate Release Version"
         id: check_version
         run: |
           VERSION=$(echo $GITHUB_REF | sed -ne 's/[^0-9]*\([0-9]\+\.[0-9]\+\.[0-9]\+\(-.*\)\?\).*/\1/p')
@@ -19,7 +23,31 @@ jobs:
           if [ $(echo $VERSION | grep "-") ]; then PRERELEASE=true; else PRERELEASE=false; fi
           echo "version=${VERSION}" >> ${GITHUB_OUTPUT}
           echo "prerelease=${PRERELEASE}" >> ${GITHUB_OUTPUT}
+      - name: "Export IMAGE_PREFIX"
+        id: export_image_prefix
+        run: |
+          if [ "${{ secrets.IMAGE_PREFIX }}" != "" ]; then IMAGE_PREFIX=${{ secrets.IMAGE_PREFIX }}; else IMAGE_PREFIX=ghcr.io/kvaster/; fi
+          echo "IMAGE_PREFIX=${IMAGE_PREFIX}" >> ${GITHUB_OUTPUT}
+
+  build-images:
+    name: "build-images"
+    needs: prepare
+    uses: ./.github/workflows/build-images.yaml
+    with:
+      topols_version: ${{ needs.prepare.outputs.version }}
+      image_tag: ${{ needs.prepare.outputs.version }}
+      image_prefix: ${{ needs.prepare.outputs.image_prefix }}
+      push: "true"
+
+  release:
+    name: "release"
+    needs: [prepare, build-images]
+    runs-on: "ubuntu-20.04"
+    steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: "go.mod"
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -28,16 +56,7 @@ jobs:
           password: ${{ secrets.GHCR }}
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      - name: Cache go dependencies
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/go/pkg/mod
-            ~/.cache/go-build
-          key: go-${{ hashFiles('go.sum', 'Makefile', 'versions.mk') }}
-          restore-keys: |
-            go-
-      - name: Build and push
-        run: make multi-platform-images PUSH=true TOPOLS_VERSION=${{ steps.check_version.outputs.version }} IMAGE_TAG=${{ steps.check_version.outputs.version }} IMAGE_PREFIX=ghcr.io/kvaster/
       - name: Tag latest
-        run: make tag IMAGE_TAG=latest ORIGINAL_IMAGE_TAG=${{ steps.check_version.outputs.version }} IMAGE_PREFIX=ghcr.io/kvaster/
+        run: make tag IMAGE_TAG=latest ORIGINAL_IMAGE_TAG=${{ steps.check_version.outputs.version }}
+        env:
+          IMAGE_PREFIX: ${{ needs.prepare.outputs.image_prefix }}

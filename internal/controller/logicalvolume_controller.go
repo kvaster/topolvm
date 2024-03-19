@@ -8,7 +8,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/kvaster/topols"
 	topolsv1 "github.com/kvaster/topols/api/v1"
-	"github.com/kvaster/topols/internal/lsm"
+	"github.com/kvaster/topols/pkg/lsm"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"

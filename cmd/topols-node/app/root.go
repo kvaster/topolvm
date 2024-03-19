@@ -13,10 +13,11 @@ import (
 )
 
 var config struct {
-	csiSocket   string
-	metricsAddr string
-	poolPath    string
-	zapOpts     zap.Options
+	csiSocket           string
+	metricsAddr         string
+	secureMetricsServer bool
+	poolPath            string
+	zapOpts             zap.Options
 }
 
 var rootCmd = &cobra.Command{
@@ -48,6 +49,7 @@ func init() {
 	fs := rootCmd.Flags()
 	fs.StringVar(&config.csiSocket, "csi-socket", topols.DefaultCSISocket, "UNIX domain socket filename for CSI")
 	fs.StringVar(&config.metricsAddr, "metrics-bind-address", ":8080", "The address the metric endpoint binds to.")
+	fs.BoolVar(&config.secureMetricsServer, "secure-metrics-server", false, "Secures the metrics server")
 	fs.StringVar(&config.poolPath, "pool-path", "/mnt/pool", "Path to folder with config and mounted btrfs file systems")
 	fs.String("nodename", "", "The resource name of the running node")
 

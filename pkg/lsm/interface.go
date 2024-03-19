@@ -46,7 +46,3 @@ type Client interface {
 
 	Watch() chan struct{}
 }
-
-func New(path string) (Client, error) {
-	return newBtrfs(path)
-}

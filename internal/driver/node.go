@@ -8,7 +8,7 @@ import (
 	"github.com/container-storage-interface/spec/lib/go/csi"
 	"github.com/kvaster/topols"
 	"github.com/kvaster/topols/internal/driver/internal/k8s"
-	"github.com/kvaster/topols/internal/lsm"
+	"github.com/kvaster/topols/pkg/lsm"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	mountutil "k8s.io/mount-utils"

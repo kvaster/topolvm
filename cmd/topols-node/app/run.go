@@ -11,7 +11,7 @@ import (
 	clientwrapper "github.com/kvaster/topols/internal/client"
 	"github.com/kvaster/topols/internal/controller"
 	"github.com/kvaster/topols/internal/driver"
-	"github.com/kvaster/topols/internal/lsm"
+	"github.com/kvaster/topols/internal/lsm/btrfs"
 	"github.com/kvaster/topols/internal/runners"
 	"github.com/spf13/viper"
 	"google.golang.org/grpc"
@@ -23,6 +23,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	//+kubebuilder:scaffold:imports
 )
@@ -47,11 +48,17 @@ func subMain() error {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&config.zapOpts)))
 
+	metricsServerOptions := metricsserver.Options{
+		BindAddress: config.metricsAddr,
+	}
+	if config.secureMetricsServer {
+		metricsServerOptions.SecureServing = true
+		metricsServerOptions.FilterProvider = filters.WithAuthenticationAndAuthorization
+	}
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			BindAddress: config.metricsAddr,
-		},
+		Scheme:         scheme,
+		Metrics:        metricsServerOptions,
 		LeaderElection: false,
 	})
 	if err != nil {
@@ -61,7 +68,7 @@ func subMain() error {
 	reader := clientwrapper.NewWrappedClient(mgr.GetClient())
 	apiReader := clientwrapper.NewWrappedReader(mgr.GetAPIReader(), mgr.GetClient().Scheme())
 
-	lsmc, err := lsm.New(config.poolPath)
+	lsmc, err := btrfs.NewBtrfs(config.poolPath)
 	if err != nil {
 		setupLog.Error(err, "unable to create ls client")
 		return err

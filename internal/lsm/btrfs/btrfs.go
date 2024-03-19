@@ -1,4 +1,4 @@
-package lsm
+package btrfs
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/g0rbe/go-chattr"
+	"github.com/kvaster/topols/pkg/lsm"
 	"k8s.io/apimachinery/pkg/api/resource"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/yaml"
@@ -45,7 +46,7 @@ type deviceClass struct {
 	Name    string
 	Default bool
 	Size    uint64
-	Volumes []*LogicalVolume
+	Volumes []*lsm.LogicalVolume
 }
 
 type btrfs struct {
@@ -56,7 +57,7 @@ type btrfs struct {
 	watches       []chan struct{}
 }
 
-func newBtrfs(path string) (*btrfs, error) {
+func NewBtrfs(path string) (lsm.Client, error) {
 	fs := &btrfs{poolPath: path}
 	fs.loadConfig()
 	return fs, nil
@@ -78,25 +79,25 @@ func (c *btrfs) notify() {
 	}
 }
 
-func (c *btrfs) GetLVList(deviceClass string) ([]*LogicalVolume, error) {
+func (c *btrfs) GetLVList(deviceClass string) ([]*lsm.LogicalVolume, error) {
 	btrfsLogger.Info("GetLVList", "DeviceClass", deviceClass)
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	var volumes []*LogicalVolume
+	var volumes []*lsm.LogicalVolume
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc != nil {
 		for _, v := range dc.Volumes {
-			volumes = append(volumes, &LogicalVolume{Name: v.Name, DeviceClass: dc.Name, Size: v.Size})
+			volumes = append(volumes, &lsm.LogicalVolume{Name: v.Name, DeviceClass: dc.Name, Size: v.Size})
 		}
 	}
 
 	return volumes, nil
 }
 
-func (c *btrfs) CreateLV(name, deviceClass string, noCow bool, size uint64) (*LogicalVolume, error) {
+func (c *btrfs) CreateLV(name, deviceClass string, noCow bool, size uint64) (*lsm.LogicalVolume, error) {
 	btrfsLogger.Info("CreateLV", "Name", name, "DeviceClass", deviceClass, "Size", size)
 
 	c.mu.Lock()
@@ -104,10 +105,10 @@ func (c *btrfs) CreateLV(name, deviceClass string, noCow bool, size uint64) (*Lo
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return nil, ErrNoDeviceClass
+		return nil, lsm.ErrNoDeviceClass
 	}
 
-	v := &LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size}
+	v := &lsm.LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size}
 	path := c.GetPath(v)
 
 	_, err := runCmd("/sbin/btrfs", "subvol", "create", path)
@@ -141,7 +142,7 @@ func (c *btrfs) CreateLV(name, deviceClass string, noCow bool, size uint64) (*Lo
 	return v, nil
 }
 
-func (c *btrfs) CreateLVSnapshot(name, deviceClass, sourceVolID string, size uint64, accessType string) (*LogicalVolume, error) {
+func (c *btrfs) CreateLVSnapshot(name, deviceClass, sourceVolID string, size uint64, accessType string) (*lsm.LogicalVolume, error) {
 	btrfsLogger.Info("CreateLVSNapshot", "Name", name, "DeviceClass", deviceClass, "Size", size, "sourceVolID", sourceVolID, "accessType", accessType)
 
 	c.mu.Lock()
@@ -149,13 +150,13 @@ func (c *btrfs) CreateLVSnapshot(name, deviceClass, sourceVolID string, size uin
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return nil, ErrNoDeviceClass
+		return nil, lsm.ErrNoDeviceClass
 	}
 
-	v := &LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size}
+	v := &lsm.LogicalVolume{Name: name, DeviceClass: dc.Name, Size: size}
 	path := c.GetPath(v)
 
-	sv := &LogicalVolume{Name: sourceVolID, DeviceClass: dc.Name, Size: size}
+	sv := &lsm.LogicalVolume{Name: sourceVolID, DeviceClass: dc.Name, Size: size}
 	srcPath := c.GetPath(sv)
 
 	args := []string{"subvol", "snapshot"}
@@ -211,12 +212,12 @@ func (c *btrfs) RemoveLV(name, deviceClass string) error {
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return ErrNoDeviceClass
+		return lsm.ErrNoDeviceClass
 	}
 
 	v := dc.findVolume(name)
 	if v == nil {
-		return ErrNoVolume
+		return lsm.ErrNoVolume
 	}
 
 	path := c.GetPath(v)
@@ -240,12 +241,12 @@ func (c *btrfs) ResizeLV(name, deviceClass string, size uint64) error {
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return ErrNoDeviceClass
+		return lsm.ErrNoDeviceClass
 	}
 
 	v := dc.findVolume(name)
 	if v == nil {
-		return ErrNoVolume
+		return lsm.ErrNoVolume
 	}
 
 	path := c.GetPath(v)
@@ -262,11 +263,11 @@ func (c *btrfs) ResizeLV(name, deviceClass string, size uint64) error {
 	return nil
 }
 
-func (c *btrfs) GetPath(v *LogicalVolume) string {
+func (c *btrfs) GetPath(v *lsm.LogicalVolume) string {
 	return filepath.Join(c.poolPath, v.DeviceClass, v.Name)
 }
 
-func (c *btrfs) VolumeStats(name, deviceClass string) (*VolumeStats, error) {
+func (c *btrfs) VolumeStats(name, deviceClass string) (*lsm.VolumeStats, error) {
 	btrfsLogger.Info("VolumeStats", "Name", name, "DeviceClass", deviceClass)
 
 	c.mu.Lock()
@@ -274,12 +275,12 @@ func (c *btrfs) VolumeStats(name, deviceClass string) (*VolumeStats, error) {
 
 	dc := c.findDeviceClass(deviceClass)
 	if dc == nil {
-		return nil, ErrNoDeviceClass
+		return nil, lsm.ErrNoDeviceClass
 	}
 
 	v := dc.findVolume(name)
 	if v == nil {
-		return nil, ErrNoVolume
+		return nil, lsm.ErrNoVolume
 	}
 
 	path := c.GetPath(v)
@@ -289,14 +290,14 @@ func (c *btrfs) VolumeStats(name, deviceClass string) (*VolumeStats, error) {
 		return nil, err
 	}
 
-	return &VolumeStats{TotalBytes: limit, UsedBytes: used}, nil
+	return &lsm.VolumeStats{TotalBytes: limit, UsedBytes: used}, nil
 }
 
-func (c *btrfs) NodeStats() (*NodeStats, error) {
+func (c *btrfs) NodeStats() (*lsm.NodeStats, error) {
 	btrfsLogger.Info("NodeStats called")
 
-	var defaultDc *DeviceClassStats
-	var stats []*DeviceClassStats
+	var defaultDc *lsm.DeviceClassStats
+	var stats []*lsm.DeviceClassStats
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -306,14 +307,14 @@ func (c *btrfs) NodeStats() (*NodeStats, error) {
 		for _, v := range dc.Volumes {
 			used += v.Size
 		}
-		s := &DeviceClassStats{VolumeStats: VolumeStats{TotalBytes: dc.Size, UsedBytes: used}, DeviceClass: dc.Name}
+		s := &lsm.DeviceClassStats{VolumeStats: lsm.VolumeStats{TotalBytes: dc.Size, UsedBytes: used}, DeviceClass: dc.Name}
 		stats = append(stats, s)
 		if dc.Default {
 			defaultDc = s
 		}
 	}
 
-	return &NodeStats{DeviceClasses: stats, Default: defaultDc}, nil
+	return &lsm.NodeStats{DeviceClasses: stats, Default: defaultDc}, nil
 }
 
 func (c *btrfs) findDeviceClass(name string) *deviceClass {
@@ -326,7 +327,7 @@ func (c *btrfs) findDeviceClass(name string) *deviceClass {
 	return nil
 }
 
-func (d *deviceClass) findVolume(name string) *LogicalVolume {
+func (d *deviceClass) findVolume(name string) *lsm.LogicalVolume {
 	for _, v := range d.Volumes {
 		if name == v.Name {
 			return v
@@ -337,7 +338,7 @@ func (d *deviceClass) findVolume(name string) *LogicalVolume {
 }
 
 func (d *deviceClass) removeVolume(name string) {
-	var vs []*LogicalVolume
+	var vs []*lsm.LogicalVolume
 	for _, v := range d.Volumes {
 		if name != v.Name {
 			vs = append(vs, v)
@@ -429,7 +430,7 @@ func (c *btrfs) loadConfig() {
 				return
 			}
 
-			var volumes []*LogicalVolume
+			var volumes []*lsm.LogicalVolume
 			for _, file := range files {
 				limit, _, _, err := parseSubvolume(filepath.Join(c.poolPath, dcc.Name, file.Name()))
 				if err != nil {
@@ -441,7 +442,7 @@ func (c *btrfs) loadConfig() {
 					return
 				}
 
-				volumes = append(volumes, &LogicalVolume{Name: file.Name(), Size: limit, DeviceClass: dcc.Name})
+				volumes = append(volumes, &lsm.LogicalVolume{Name: file.Name(), Size: limit, DeviceClass: dcc.Name})
 			}
 
 			dc = &deviceClass{Name: dcc.Name, Volumes: volumes}
