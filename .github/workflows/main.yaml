@@ -23,6 +23,7 @@ jobs:
   build-images:
     name: "build-images"
     uses: ./.github/workflows/build-images.yaml
+    secrets: inherit
 
   container-structure-test:
     name: "container-structure-test"
